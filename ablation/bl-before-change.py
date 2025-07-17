@@ -329,198 +329,199 @@ def main():
       fun(coerce(arg))
 
 #--------- --------- --------- --------- --------- --------- ------- -------
-def eg__the(_): print(the)
 
-def eg__cols(_): 
-  s="Clndrs,Volume,HpX,Model,origin,Lbs-,Acc+,Mpg+"
-  [print(col) for col in Cols(s.split(",")).all]
+def eg__nbfew(file, experiment_name="before_changes"):
+    data = Data(csv(file or the.file))
 
-def eg__csv(file): 
-  rows =list(csv(file or the.file))
-  assert 3192 == sum(len(row) for row in rows)
-  for row in rows[1:]: assert type(first(row)) is int
+    # Get the class column index
+    class_col_idx = data.cols.klass.at
 
-def eg__data(file):
-  data=Data(csv(file or the.file))
-  assert 3184 == sum(len(row) for row in data.rows)
-  for row in data.rows: assert type(first(row)) is int
-  [print(col) for col in data.cols.all]
-  nums = adds(ydist(row,data) for row in data.rows)
-  print(o(mu=nums.mu, sd=nums.sd))
+    # Determine if class column is numeric or string
+    is_numeric = isinstance(data.rows[0][class_col_idx], (int, float))
+    positive_value = 1 if is_numeric else "yes"
 
-def eg__ydist(file):
-  data=Data(csv(file or the.file))
-  r = data.rows[1] # ydist(data.rows[1],data))
-  print(show(r),  ydist(r,data),the.p)
-  #print(sorted(round(ydist(row,data),2) for row in data.rows))
+    # Split data into positive and negative samples
+    positive_samples = [
+        row for row in data.rows if row[class_col_idx] == positive_value
+    ]
+    negative_samples = [
+        row for row in data.rows if row[class_col_idx] != positive_value
+    ]
 
-def dump(d): print(len(d.rows)); [print(col) for col in d.cols.all]
+    # Define all possible n_pos values
+    all_n_pos_values = [32]
 
-def eg__addSub(file):
-  data=Data(csv(file or the.file))
-  dump(data)
-  cached=data.rows[:]
-  while data.rows: sub(data.rows.pop(), data)
-  dump(data)
-  for row in cached: add(row,data)
-  dump(data)
-  for row in data.rows: assert -17 < like(row,data,1000,2) < -10
+    # Filter n_pos values to only include those that are possible
+    n_pos_values = [n for n in all_n_pos_values if n <= len(positive_samples)]
 
-def eg__clone(file):
-  data=Data(csv(file or the.file))
-  dump(data)
-  data2=clone(data,src=data.rows)
-  dump(data2)
+    if not n_pos_values:
+        print(f"\nError: Not enough positive samples in the dataset.")
+        print(f"Minimum required: {min(all_n_pos_values)} positive samples")
+        print(f"Available: {len(positive_samples)} positive samples")
+        return
 
-def eg__stats(_):
-   def c(b): return 1 if b else 0
-   G  = random.gauss
-   R  = random.random
-   n  = 50
-   b4 = [G(10,1) for _ in range(n)]
-   d  = 0
-   while d < 2:
-     now = [x+d*R() for x in b4]
-     b1  = cliffs(b4,now)
-     b2  = bootstrap(b4,now)
-     showd(o(d=d,cliffs=c(b1), boot=c(b2), agree=c(b1==b2)))
-     d  += 0.1
+    print(
+        f"\nRunning experiments for {len(n_pos_values)} possible n_pos values: {n_pos_values}"
+    )
+    print("=" * 50)
 
-def eg__rank(_):
-   G  = random.gauss
-   n=100
-   d=dict(asIs  = [G(10,1) for _ in range(n)],
-          copy1 = [G(20,1) for _ in range(n)],
-          now1  = [G(20,1) for _ in range(n)],
-          copy2 = [G(40,1) for _ in range(n)],
-          now2  = [G(40,1) for _ in range(n)])
-   for k,num in vals2RankedNums(d,the.Cohen).items():
-      showd(o(what=num.txt, rank=num.rank, num=num.mu))
+    # Store results for CSV output
+    results = {
+        "median": [],  # 50th percentile
+        "q1": [],  # 25th percentile
+        "q3": [],  # 75th percentile
+    }
 
-def eg__actLearn(file,  repeats=30):
-  file = file or the.file
-  name = re.search(r'([^/]+)\.csv$', file).group(1)
-  data = Data(csv(file))
-  b4   = yNums(data.rows,data)
-  now  = Num()
-  t1   = time.perf_counter_ns()
-  for _ in range(repeats):
-    add(ydist(first(actLearn(data, shuffle=True).best.rows ) ,data), now)
-  t2  = time.perf_counter_ns()
-  print(o(win= (b4.mu - now.mu) /(b4.mu - b4.lo),
-          rows=len(data.rows),x=len(data.cols.x),y=len(data.cols.y),
-          lo0=b4.lo, mu0=b4.mu, hi0=b4.hi, mu1=now.mu,sd1=now.sd,
-          ms = int((t2-t1)/repeats/10**6),
-          stop=the.Stop,name=name))
+    # Run experiments for different numbers of positive samples
+    for n_pos in n_pos_values:
+        recalls = []
+        precisions = []
+        f1s = []
 
-def eg__fast(file):
-  def rx1(data):
-    return ydist( first(actLearn(data,shuffle=True).best.rows), data)
-  experiment1(file or the.file,
-              repeats=30, 
-              samples=[64,32,16,8],
-              fun=rx1)
+        # Run 100 experiments for each n_pos
+        for i in range(100):
+            # Select positive samples
+            selected_pos = random.sample(positive_samples, n_pos)
 
-def eg__quick(file):
-  def rx1(data):
-    return [ydist(first(actLearn(data, shuffle=True).best.rows), data)]
-  experiment1(file or the.file,
-              repeats=10, 
-              samples=[40,20,16,8],
-              fun=rx1)
+            # Select negative samples (4x the number of positive samples)
+            n_neg = n_pos * 4
+            if len(negative_samples) < n_neg:
+                print(f"\nError: Not enough negative samples for n_pos={n_pos}.")
+                print(f"Required: {n_neg} negative samples")
+                print(f"Available: {len(negative_samples)} negative samples")
+                return
 
-def eg__acts(file):
-  def rx1(data):
-    return [ydist(first(actLearn(data, shuffle=True).best.rows), data)]
-  experiment1(file or the.file,
-              repeats=30, 
-              samples=[200,100,50,40,30,20,16,8],
-              fun=rx1)
+            selected_neg = random.sample(negative_samples, n_neg)
 
-def experiment1(file, 
-                repeats=30, samples=[32,16,8],
-                fun=lambda d: ydist(first(actLearn(d,shuffle=True).best.rows),d)):
-  name = re.search(r'([^/]+)\.csv$', file).group(1)
-  data = Data(csv(file))
-  rx   = dict(b4 = [ydist(row,data) for row in data.rows])
-  asIs = adds(rx["b4"])
-  t1   = time.perf_counter_ns()
-  for the.Stop in samples:
-    rx[the.Stop] = []
-    for _ in range(repeats): rx[the.Stop] +=  fun(data) 
-  t2 = time.perf_counter_ns()
-  report = dict(rows = len(data.rows), 
-                lo   = f"{asIs.lo:.2f}",
-                x    = len(data.cols.x), 
-                y    = len(data.cols.y),
-                ms   = round((t2 - t1) / (repeats * len(samples) * 10**6)))
-  order = vals2RankedNums(rx, asIs.sd*the.Cohen)
-  for k in rx:
-    v = order[k]
-    report[k] = f"{v.rank} {v.mu:.2f} "
-  report["name"]=name
-  print("#"+str(list(report.keys())))
-  print(list(report.values()))
+            # Create separate datasets for positive and negative classes
+            pos_dataset = clone(data, selected_pos)
+            neg_dataset = clone(data, selected_neg)
 
-def fname(f): return re.sub(".*/", "", f)
+            # Get remaining samples for testing
+            test_samples = [
+                row for row in data.rows if row not in selected_pos + selected_neg
+            ]
 
-def eg__tree(file):
-  data = Data(csv(file or the.file))
-  model  = actLearn(data)
-  b4  = yNums(data.rows,data)
-  now = yNums(model.best.rows,data)
-  nodes = tree(model.best.rows + model.rest.rows,data)
-  print("\n"+fname(file or the.file))
-  showd(o(mu1=b4.mu, mu2=now.mu,  sd1=b4.sd, sd2=now.sd))
-  showTree(nodes)
+            # Initialize counters for evaluation
+            tp = 0  # True positives
+            fp = 0  # False positives
+            fn = 0  # False negatives
+            tn = 0  # True negatives
 
-def eg__rules(file):
-  data  = Data(csv(file or the.file))
-  b4    = yNums(data.rows, data)
-  model = actLearn(data)
-  now   = yNums(model.best.rows, data)
-  nodes = tree(model.best.rows + model.rest.rows,data)
-  todo  = yNums(model.todo, data)
-  guess = sorted([(leaf(nodes,row).ys,row) for row in model.todo],key=first)
-  mid = len(guess)//5
-  after = yNums([row2 for row1 in model.todo for row2 in leaf(nodes,row1).rows],data)
-  print(fname(file or the.file))
-  print(o(txt1="b4", txt2="now",  txt3="todo",  txt4="after"))
-  print(o(mu1=b4.mu, mu2=now.mu,  mu3=todo.mu,  mu4=ydist(guess[mid][1],data)))
-  print(o(lo1=b4.lo, lo2=now.lo,  lo3=todo.lo,  lo4=ydist(guess[0][1],data)))
-  print(o(hi1=b4.hi, hi2=now.hi,  hi3=todo.hi,  hi4=ydist(guess[-1][1],data)))
-  print(o(n1=b4.n,   n2=now.n,    n3=todo.n,    n4=after.n))
+            # Evaluate on test samples
+            for row in test_samples:
+                actual_class = row[class_col_idx]
 
-def eg__afterDumb(file) : eg__after(file,repeats=30, smart=False)
+                # Get the dataset with maximum likelihood
+                best_dataset = likes(row, [pos_dataset, neg_dataset])
 
-def eg__after(file,repeats=30, smart=True):
-  data  = Data(csv(file or the.file))
-  b4    = yNums(data.rows, data) 
-  overall= {j:Num() for j in [256,128,64,32,16,8]}
-  for Stop in overall:
-    the.Stop = Stop
-    after = {j:Num() for j in [20,15,10,5,3,1]}
-    learnt = Num()
-    rand =Num()
-    for _ in range(repeats):
-      model = actLearn(data,shuffle=True)
-      nodes = tree(model.best.rows + model.rest.rows,data)
-      add(ydist(model.best.rows[0],data), learnt)
-      guesses = sorted([(leaf(nodes,row).ys,row) for row in model.todo],key=first)
-      for k in after:
-        if smart:
-              smart = min([(ydist(guess,data),guess) for _,guess in guesses[:k]], 
-                           key=first)[1]
-              add(ydist(smart,data),after[k]) 
-        else:
-              dumb = min([(ydist(row,data),row) for row in random.choices(model.todo,k=k)],
-                   key=first)[1]
-              add(ydist(dumb,data),after[k]) 
-    def win(x): return str(round(100*(1 - (x - b4.lo)/(b4.mu - b4.lo))))
-    print(the.Stop, win(learnt.mu), 
-          " ".join([win(after[k].mu) for k in after]), 
-          1, 
-          fname(file or the.file), "smart" if smart else "dumb")
+                # Predict positive class if the best dataset is the positive dataset
+                predicted_class = (
+                    positive_value
+                    if best_dataset is pos_dataset
+                    else (0 if is_numeric else "no")
+                )
+
+                # Update counters
+                if actual_class == positive_value and predicted_class == positive_value:
+                    tp += 1
+                elif actual_class == positive_value and predicted_class != positive_value:
+                    fn += 1
+                elif actual_class != positive_value and predicted_class == positive_value:
+                    fp += 1
+                else:  # actual_class != positive_value and predicted_class != positive_value
+                    tn += 1
+
+            # Calculate precision, recall, and F1
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+            recalls.append(recall)
+            precisions.append(precision)
+            f1s.append(f1)
+
+            # Print recall and precision for ablation study parsing
+            print(f"Recall: {recall:.3f}")
+            print(f"Precision: {precision:.3f}")
+
+            # Show progress every 10 experiments
+            if (i + 1) % 10 == 0:
+                print(f"Completed {i + 1} experiments for {n_pos} positive samples...")
+
+        # Calculate statistics
+        recalls = [r for r in recalls if r is not None]  # Remove any None values
+        precisions = [p for p in precisions if p is not None]
+        f1s = [f for f in f1s if f is not None]
+        if not recalls:  # If all recalls are None, skip this iteration
+            print(f"\nNo valid recalls for {n_pos} positive samples")
+            continue
+
+        # Sort for percentile calculations
+        sorted_recalls = sorted(recalls)
+        sorted_precisions = sorted(precisions)
+        sorted_f1s = sorted(f1s)
+        median = sorted_recalls[len(sorted_recalls) // 2]  # 50th percentile
+        q1 = sorted_recalls[len(sorted_recalls) // 4]  # 25th percentile
+        q3 = sorted_recalls[3 * len(sorted_recalls) // 4]  # 75th percentile
+        median_p = sorted_precisions[len(sorted_precisions) // 2] if sorted_precisions else None
+        q1_p = sorted_precisions[len(sorted_precisions) // 4] if sorted_precisions else None
+        q3_p = sorted_precisions[3 * len(sorted_precisions) // 4] if sorted_precisions else None
+        median_f1 = sorted_f1s[len(sorted_f1s) // 2] if sorted_f1s else None
+        q1_f1 = sorted_f1s[len(sorted_f1s) // 4] if sorted_f1s else None
+        q3_f1 = sorted_f1s[3 * len(sorted_f1s) // 4] if sorted_f1s else None
+
+        print(f"\nResults for {n_pos} positive samples (100 experiments):")
+        print(f"Recall: median={median:.3f}, Q1={q1:.3f}, Q3={q3:.3f}")
+        if median_p is not None:
+            print(f"Precision: median={median_p:.3f}, Q1={q1_p:.3f}, Q3={q3_p:.3f}")
+        if median_f1 is not None:
+            print(f"F1: median={median_f1:.3f}, Q1={q1_f1:.3f}, Q3={q3_f1:.3f}")
+
+        # Create distribution visualization
+        print("\nDistribution of Recalls:")
+        bins = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        counts = [0] * (len(bins) - 1)
+
+        # Count values in each bin
+        for recall in recalls:
+            for i in range(len(bins) - 1):
+                if bins[i] <= recall < bins[i + 1]:
+                    counts[i] += 1
+                    break
+            else:  # If recall is exactly 1.0, count it in the last bin
+                if recall == 1.0:
+                    counts[-1] += 1
+
+        # Verify total count matches number of experiments
+        total_count = sum(counts)
+        if total_count != len(recalls):
+            print(
+                f"Warning: Distribution count ({total_count}) doesn't match number of experiments ({len(recalls)})"
+            )
+
+        # Print distribution
+        max_count = max(counts) if counts else 1
+        scale = 40  # Maximum bar length
+
+        for i in range(len(bins) - 1):
+            bar_length = int((counts[i] / max_count) * scale)
+            bar = "█" * bar_length
+            print(f"{bins[i]:.1f}-{bins[i + 1]:.1f}: {bar} {counts[i]}")
+
+        print("=" * 50)
+
+    # Save results to CSV
+    csv_filename = f"results_{experiment_name}_before_changes.csv"
+    with open(csv_filename, "w") as f:
+        # Write header row with n_pos values
+        f.write(",".join(map(str, n_pos_values)) + "\n")
+        # Write data rows in order: median, q1, q3
+        f.write(",".join(results["median"]) + "\n")
+        f.write(",".join(results["q1"]) + "\n")
+        f.write(",".join(results["q3"]) + "\n")
+
+    print(f"\nResults saved to {csv_filename}")
 
 #--------- --------- --------- --------- --------- --------- ------- -------
 regx = r"-\w+\s*(\w+).*=\s*(\S+)"

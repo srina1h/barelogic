@@ -154,3 +154,62 @@ stats: ../../moot/optimize/[bchmp]*/*.csv
 # |  rely == vh [4] 0.587
 # |  |  pmat == h [2] 0.561
 # |  |  pmat == l [2] 0.613
+
+# Run eg__nbfew on all preprocessed datasets in bl mode
+parent_dir = $(shell pwd)/..
+nbfew_bl: 
+	@echo "Running eg__nbfew on all preprocessed datasets (bl mode)"
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+
+# Run eg__nbfew on all preprocessed datasets in sklearn mode
+nbfew_sk: 
+	@echo "Running eg__nbfew on all preprocessed datasets (sklearn mode)"
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+
+nbfew_bl_min:
+	@echo "Running eg__nbfew on all minimally preprocessed datasets (bl mode)"
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	python3 -B bl-added.py -M bl --nbfew $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+nbfew_sk_min:
+	@echo "Running eg__nbfew on all minimally preprocessed datasets (sklearn mode)"
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	python3 -B bl-added.py -M sklearn --nbfew $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+nbal_bl:
+	@echo "Running eg__nbAL on all preprocessed datasets (bl mode)"
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+
+nbal_sk:
+	@echo "Running eg__nbAL on all preprocessed datasets (sklearn mode)"
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+
+nbal_bl_min:
+	@echo "Running eg__nbAL on all minimally preprocessed datasets (bl mode)"
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+nbal_sk_min:
+	@echo "Running eg__nbAL on all minimally preprocessed datasets (sklearn mode)"
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv

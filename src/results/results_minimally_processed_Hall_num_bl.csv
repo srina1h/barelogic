@@ -1,0 +1,2 @@
+recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3
+0.708,0.764,0.806,0.020,0.023,0.025
