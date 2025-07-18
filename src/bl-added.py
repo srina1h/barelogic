@@ -678,25 +678,35 @@ def eg__nbfew(file):
         for row in results:
             f.write(",".join(row) + "\n")
 
-def single_repeat_uncertainty(args):
-    data, n_pos, class_col_idx, class_values, pos, neg, initial_q, final_q = args
-    import random, math
-    positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
-    negative_samples = [row for row in data.rows if row[class_col_idx] == neg]
-    if len(positive_samples) < n_pos or len(negative_samples) < n_pos * 4:
-        return None
-    selected_pos = random.sample(positive_samples, n_pos)
-    selected_neg = random.sample(negative_samples, n_pos * 4)
-    labeled = selected_pos + selected_neg
-    pool = [row for row in data.rows if row not in labeled]
-    step_metrics = []
-    no_iterations = len(pool)
-    acq = 0
-    while pool:
+def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
+    class_col_idx = data.cols.klass.at
+    class_values = list(set(row[class_col_idx] for row in data.rows))
+    assert len(class_values) == 2, "This function assumes exactly 2 classes."
+    pos, neg = class_values[0], class_values[1]
+    results = []
+    initial_q = 1
+    final_q = 0
+    batch_size = 100
+    for i in range(repeats):
+        print(f"Running eg__nbAL with n_pos={n_pos} and repeats={repeats} for iteration {i}")
+        positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
+        negative_samples = [row for row in data.rows if row[class_col_idx] == neg]
+        if len(positive_samples) < n_pos or len(negative_samples) < n_pos * 4:
+            continue
+        selected_pos = random.sample(positive_samples, n_pos)
+        selected_neg = random.sample(negative_samples, n_pos * 4)
+        labeled = selected_pos + selected_neg
+        pool = [row for row in data.rows if row not in labeled]
+        step_metrics = []
+        no_iterations = len(pool)
+        acq = 0
+        
+        # Initial evaluation at step 0
         datasets = []
         for val in class_values:
             datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
         tp = fp = fn = 0
+        print(f"Evaluating at step {acq} for {len(pool)} remaining rows")
         for row in pool:
             predicted_dataset = likes(row, datasets)
             predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
@@ -710,44 +720,75 @@ def single_repeat_uncertainty(args):
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         step_metrics.append((precision, recall))
-        if not pool:
-            break
-        q = initial_q - (initial_q - final_q) * acq / (no_iterations if no_iterations > 0 else 1)
-        def acq_score(row):
-            logps = []
-            for dset in datasets:
-                logp = like(row, dset, nall=sum(d.n for d in datasets), nh=len(datasets))
-                logps.append(logp)
-            max_logp = max(logps)
-            probs = [math.exp(lp - max_logp) for lp in logps]
-            total = sum(probs)
-            probs = [p / total for p in probs]
-            best = max(probs)
-            rest = min(probs)
-            numerator = best + q * rest
-            denominator = abs(q * best - rest) if abs(q * best - rest) > 1e-12 else 1e-12
-            return numerator / denominator
-        most_acq = max(pool, key=acq_score)
-        labeled.append(most_acq)
-        pool.remove(most_acq)
-        acq += 1
-    return step_metrics
-
-def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
-    class_col_idx = data.cols.klass.at
-    class_values = list(set(row[class_col_idx] for row in data.rows))
-    assert len(class_values) == 2, "This function assumes exactly 2 classes."
-    pos, neg = class_values[0], class_values[1]
-    initial_q = 1
-    final_q = 0
-    results = []
-    args = [(data, n_pos, class_col_idx, class_values, pos, neg, initial_q, final_q) for _ in range(repeats)]
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [executor.submit(single_repeat_uncertainty, arg) for arg in args]
-        for future in concurrent.futures.as_completed(futures):
-            res = future.result()
-            if res is not None:
-                results.append(res)
+        
+        while pool:
+            # Acquire batch_size samples at once (trading accuracy for speed)
+            batch_to_acquire = min(batch_size, len(pool))
+            acquired_samples = []
+            
+            # Compute acquisition scores for all remaining pool samples
+            q = initial_q - (initial_q - final_q) * acq / (no_iterations if no_iterations > 0 else 1)
+            pool_scores = []
+            for row in pool:
+                logps = []
+                for dset in datasets:
+                    logp = like(row, dset, nall=sum(d.n for d in datasets), nh=len(datasets))
+                    logps.append(logp)
+                max_logp = max(logps)
+                probs = [math.exp(lp - max_logp) for lp in logps]
+                total = sum(probs)
+                probs = [p / total for p in probs]
+                best = max(probs)
+                rest = min(probs)
+                numerator = best + q * rest
+                denominator = abs(q * best - rest) if abs(q * best - rest) > 1e-12 else 1e-12
+                pool_scores.append(numerator / denominator)
+            
+            # Select top batch_size samples at once
+            for _ in range(batch_to_acquire):
+                if not pool:
+                    break
+                # Find the sample with highest score
+                best_idx = max(range(len(pool)), key=lambda i: pool_scores[i])
+                acquired_samples.append(pool[best_idx])
+                # Remove from pool and scores
+                pool.pop(best_idx)
+                pool_scores.pop(best_idx)
+                acq += 1
+            
+            # Add acquired samples to labeled set
+            labeled.extend(acquired_samples)
+            
+            # Update datasets incrementally (add new samples to existing datasets)
+            for val_idx, val in enumerate(class_values):
+                new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
+                for row in new_samples:
+                    add(row, datasets[val_idx])
+            
+            # Evaluate after each batch (except the first one which was already evaluated)
+            if acq % batch_size == 0 and acq > 0:
+                tp = fp = fn = 0
+                print(f"Evaluating at step {acq} for {len(pool)} remaining rows")
+                for row in pool:
+                    predicted_dataset = likes(row, datasets)
+                    predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+                    actual_class = row[class_col_idx]
+                    if predicted_class == pos and actual_class == pos:
+                        tp += 1
+                    elif predicted_class == pos and actual_class == neg:
+                        fp += 1
+                    elif predicted_class == neg and actual_class == pos:
+                        fn += 1
+                precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+                recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+                step_metrics.append((precision, recall))
+            elif acq > 0:
+                # Set precision and recall to 0 for non-evaluation steps
+                step_metrics.append((0, 0))
+            
+            if not pool:
+                break
+        results.append(step_metrics)
     return results
 
 # Update eg__nbAL to optionally use the uncertainty loop
