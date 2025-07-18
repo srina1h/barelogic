@@ -822,7 +822,7 @@ def eg__nbAL(file, repeats=100):
             os.makedirs(results_dir, exist_ok=True)
             csv_filename = os.path.join(
                 results_dir,
-                f"results_uncertainty_{n_pos_val}_{base_filename}.csv"
+                f"results_uncertainty_{str(the.Mode)}_{n_pos_val}_{base_filename}.csv"
             )
             with open(csv_filename, "w") as f:
                 f.write("step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3\n")
