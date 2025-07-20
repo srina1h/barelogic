@@ -796,7 +796,7 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
 def eg__nbAL(file, repeats=100):
     data = Data(csv(file or the.file))
     base_filename = os.path.splitext(os.path.basename(file))[0]
-    n_pos_values = [8, 16, 32, 48]
+    n_pos_values = [32]
     for n_pos_val in n_pos_values:
         print(f"Running eg__nbAL on {file} with n_pos={n_pos_val} and repeats={repeats}")
         results = active_learning_uncertainty_loop(data, n_pos=n_pos_val, repeats=repeats)
