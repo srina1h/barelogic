@@ -682,7 +682,15 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
     class_col_idx = data.cols.klass.at
     class_values = list(set(row[class_col_idx] for row in data.rows))
     assert len(class_values) == 2, "This function assumes exactly 2 classes."
-    pos, neg = class_values[0], class_values[1]
+    
+    # Determine which class is positive (minority) and which is negative (majority)
+    class_counts = {}
+    for val in class_values:
+        class_counts[val] = sum(1 for row in data.rows if row[class_col_idx] == val)
+    
+    # Minority class is positive, majority class is negative
+    pos = min(class_counts, key=class_counts.get)
+    neg = max(class_counts, key=class_counts.get)
     results = []
     initial_q = 1
     final_q = 0
@@ -691,7 +699,9 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
         print(f"Running eg__nbAL with n_pos={n_pos} and repeats={repeats} for iteration {i}")
         positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
         negative_samples = [row for row in data.rows if row[class_col_idx] == neg]
+        print(f"Found {len(positive_samples)} positive and {len(negative_samples)} negative samples")
         if len(positive_samples) < n_pos or len(negative_samples) < n_pos * 4:
+            print(f"Skipping iteration {i}: insufficient samples (pos: {len(positive_samples)}, neg: {len(negative_samples)})")
             continue
         selected_pos = random.sample(positive_samples, n_pos)
         selected_neg = random.sample(negative_samples, n_pos * 4)
