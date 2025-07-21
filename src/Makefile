@@ -225,11 +225,28 @@ exp_2_nbal_hall:
 
 exp_2_nbal_kitchenham:
 	@echo "Running eg__nbAL on Kitchenham sk + bl / minimal + preprocessed"
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+
+exp_2_nbal_Wahono:
+	@echo "Running eg__nbAL on Wahono sk + bl / minimal + preprocessed"
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+exp_2_nbal_Radjenovic:
+	@echo "Running eg__nbAL on Radjenovic sk + bl / minimal + preprocessed"
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+
 
 run_nbal:
 	make nbal_bl
