@@ -249,6 +249,7 @@ exp_2_nbal_Radjenovic:
 
 
 nbskal:
+	pip3.10 install scikit-learn pandas numpy
 	@echo "Running nb_sk_al.py on all preprocessed and minimally processed datasets with n_pos=8,16,32"
 	mkdir -p results_al
 	for n in 8 16 32; do \
