@@ -217,11 +217,11 @@ nbal_sk_min:
 exp_2_nbal_hall:
 	@echo "Running eg__nbAL on Hall sk + bl / minimal + preprocessed"
 
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
 exp_2_nbal_kitchenham:
 	@echo "Running eg__nbAL on Kitchenham sk + bl / minimal + preprocessed"
@@ -253,3 +253,17 @@ run_nbal:
 	make nbal_sk
 	make nbal_bl_min
 	make nbal_sk_min
+
+nbskal:
+	@echo "Running nb_sk_al.py on all preprocessed and minimally processed datasets with n_pos=8,16,32"
+	mkdir -p results_al
+	for n in 8 16 32; do \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_preprocessed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_preprocessed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_preprocessed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Wahono_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Wahono_preprocessed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_minimally_processed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_minimally_processed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_minimally_processed.csv; \
+	  python3 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Wahono_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Wahono_minimally_processed.csv; \
+	done

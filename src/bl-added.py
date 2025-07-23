@@ -128,8 +128,7 @@ def yNums(rows,data): return adds(ydist(row,data) for row in rows)
 #--------- --------- like/likes wrapper --------- ------- -------
 def likes(row, datas):
     if the.Mode == 'sklearn':
-        # Calculate global category stats ONLY in sk mode
-        calculate_global_category_stats(datas)
+        # Assume global category stats are already calculated
         return likes_sklearn(row, datas)
     elif the.Mode == 'bl':
         return likes_traditional(row, datas)
@@ -188,38 +187,34 @@ def likes_sklearn(lst, datas):
     nh = len(datas)  # number of classes
     return max(datas, key=lambda data: like_sklearn(lst, data, nall, nh))
 
+def _log_pdf_for_col(value, col):
+   if value == "?":
+      return 0.0
+   
+   if getattr(col, 'it', None) is Sym:
+      n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
+      return (col.has.get(v, 0) + the.Alpha_cnb_sk) / (
+          col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk)
+   
+   mu = col.mu
+   sd = col.sd
+
+   variance = sd * sd + the.var_smoothing_gnb_sk
+   log_nom = -1 * (value - mu) ** 2 / (2 * variance)
+   log_denom = 0.5 * math.log(2 * math.pi * variance)
+
+   return log_nom - log_denom
+
 def like_sklearn(row, data, nall=100, nh=2):
-    def _col(v, col):
-        if v == "?":
-            return 1.0
-        if getattr(col, 'it', None) is Sym:
-            n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
-            return (col.has.get(v, 0) + the.Alpha_cnb_sk) / (
-                col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk
-            )
-        sd = getattr(col, 'sd', 0) + the.var_smoothing_gnb_sk
-        if sd <= the.eps_sk:
-            return 1.0 if abs(v - getattr(col, 'mu', 0)) < the.eps_sk else the.eps_sk
-        log_nom = -1 * (v - getattr(col, 'mu', 0)) ** 2 / (2 * sd * sd)
-        log_denom = 0.5 * math.log(2 * math.pi * sd * sd)
-        log_pdf = log_nom - log_denom
-        pdf = math.exp(log_pdf)
-        min_prob = 1e-10
-        return max(pdf, min_prob)
-
     prior = (data.n) / (nall + the.eps_sk)
-    prior = max(prior, 1e-10)
+    log_prior = math.log(max(prior, the.eps_sk))
 
-    tmp = []
-    for x_col in getattr(data, 'cols', []).x if getattr(data, 'cols', None) else []:
-        if row[x_col.at] != "?":
-            val_likelihood = _col(row[x_col.at], x_col)
-            tmp.append(val_likelihood)
+    total_log_likelihood = sum(
+        _log_pdf_for_col(row[x_col.at], x_col)
+        for x_col in getattr(data, 'cols', []).x if getattr(data, 'cols', None)
+    )
 
-    log_prior = math.log(prior) if prior > the.eps_sk else math.log(the.eps_sk)
-    log_likelihoods_sum = sum(math.log(max(n, the.eps_sk)) for n in tmp)
-
-    return log_prior + log_likelihoods_sum
+    return log_prior + total_log_likelihood
 
 #--------- --------- --------- --------- --------- --------- ------- -------
 def actLearn(data, shuffle=True):
@@ -694,7 +689,7 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
     results = []
     initial_q = 1
     final_q = 0
-    batch_size = 100
+    batch_size = 1
     for i in range(repeats):
         print(f"Running eg__nbAL with n_pos={n_pos} and repeats={repeats} for iteration {i}")
         positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
@@ -715,9 +710,11 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
         datasets = []
         for val in class_values:
             datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
+        if the.Mode == 'sklearn':
+            calculate_global_category_stats(datasets)
         tp = fp = fn = 0
-        print(f"Evaluating at step {acq} for {len(pool)} remaining rows")
-        for row in pool:
+        print(f"Evaluating at step {acq} on all rows")
+        for row in data.rows:  # <-- changed from 'for row in pool:'
             predicted_dataset = likes(row, datasets)
             predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
             actual_class = row[class_col_idx]
@@ -774,12 +771,13 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
                 for row in new_samples:
                     add(row, datasets[val_idx])
-            
+            if the.Mode == 'sklearn':
+                calculate_global_category_stats(datasets)
             # Evaluate after each batch (except the first one which was already evaluated)
             if acq % batch_size == 0 and acq > 0:
                 tp = fp = fn = 0
-                print(f"Evaluating at step {acq} for {len(pool)} remaining rows")
-                for row in pool:
+                print(f"Evaluating at step {acq} on all rows")
+                for row in data.rows:  # <-- changed from 'for row in pool:'
                     predicted_dataset = likes(row, datasets)
                     predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
                     actual_class = row[class_col_idx]
@@ -798,15 +796,31 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
             
             if not pool:
                 break
+        # Final evaluation after all samples have been acquired
+        tp = fp = fn = 0
+        print(f"Final evaluation with all samples acquired on all rows")
+        for row in data.rows:
+            predicted_dataset = likes(row, datasets)
+            predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+            actual_class = row[class_col_idx]
+            if predicted_class == pos and actual_class == pos:
+                tp += 1
+            elif predicted_class == pos and actual_class == neg:
+                fp += 1
+            elif predicted_class == neg and actual_class == pos:
+                fn += 1
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        step_metrics.append((precision, recall))
         results.append(step_metrics)
     return results
 
 # Update eg__nbAL to optionally use the uncertainty loop
 # Usage: eg__nbAL(file, repeats=100, acq_mode='uncertainty')
-def eg__nbAL(file, repeats=100):
+def eg__nbAL(file, repeats=20):
     data = Data(csv(file or the.file))
     base_filename = os.path.splitext(os.path.basename(file))[0]
-    n_pos_values = [32]
+    n_pos_values = [8, 16, 32]
     for n_pos_val in n_pos_values:
         print(f"Running eg__nbAL on {file} with n_pos={n_pos_val} and repeats={repeats}")
         results = active_learning_uncertainty_loop(data, n_pos=n_pos_val, repeats=repeats)
@@ -846,5 +860,43 @@ def eg__nbAL(file, repeats=100):
 regx = r"-\w+\s*(\w+).*=\s*(\S+)"
 the  = o(**{m[1]:coerce(m[2]) for m in re.finditer(regx,__doc__)})
 random.seed(the.rseed)
+
+def eg__timecheck(file):
+    """
+    Loads the given CSV, uses first 5000 rows as train, next 3000 as test.
+    For 100 repeats:
+      - Shuffle all rows
+      - Take first 5000 as train, next 3000 as test
+      - Build two datasets (by class) from train
+      - For each test row, predict using likes()
+      - Measure and report average inference (prediction) time only
+    At the end, print the average inference time (ms) for each mode.
+    """
+    data = Data(csv(file or the.file))
+    n_train = 5000
+    n_test = 3000
+    n_repeats = 10
+    class_col_idx = data.cols.klass.at
+    all_rows = data.rows[:]
+    for mode in ['sklearn']:
+        the.Mode = mode
+        predict_times = []
+        for i in range(n_repeats):
+            print(f"Running eg__timecheck for mode {mode} for repeat {i}")
+            random.shuffle(all_rows)
+            train_rows = all_rows[:n_train]
+            test_rows = all_rows[n_train:n_train+n_test]
+            class_vals = list(set(row[class_col_idx] for row in train_rows))
+            datasets = [clone(data, [row for row in train_rows if row[class_col_idx] == v]) for v in class_vals]
+            if the.Mode == 'sklearn':
+                calculate_global_category_stats(datasets)
+            t0 = time.perf_counter()
+            for row in test_rows:
+                _ = likes(row, datasets)
+            t1 = time.perf_counter()
+            predict_times.append((t1 - t0) * 1000)  # ms
+            print(f"Predict time for repeat {i}: {predict_times[-1]} ms")
+        mean_pred = sum(predict_times) / len(predict_times)
+        print(o(mode=mode, avg_inference_time_ms=mean_pred, n=n_repeats))
 
 if __name__ == "__main__":  main()
