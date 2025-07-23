@@ -710,8 +710,8 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
         datasets = []
         for val in class_values:
             datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
-        if the.Mode == 'sklearn':
-            calculate_global_category_stats(datasets)
+        # if the.Mode == 'sklearn':
+            # calculate_global_category_stats(datasets) # TODO: add this back in when Sym is implemented correctly
         tp = fp = fn = 0
         print(f"Evaluating at step {acq} on all rows")
         for row in data.rows:  # <-- changed from 'for row in pool:'
@@ -771,8 +771,8 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
                 for row in new_samples:
                     add(row, datasets[val_idx])
-            if the.Mode == 'sklearn':
-                calculate_global_category_stats(datasets)
+            # if the.Mode == 'sklearn':
+            #     calculate_global_category_stats(datasets)
             # Evaluate after each batch (except the first one which was already evaluated)
             if acq % batch_size == 0 and acq > 0:
                 tp = fp = fn = 0
@@ -878,7 +878,7 @@ def eg__timecheck(file):
     n_repeats = 10
     class_col_idx = data.cols.klass.at
     all_rows = data.rows[:]
-    for mode in ['sklearn']:
+    for mode in ['bl', 'sklearn']:
         the.Mode = mode
         predict_times = []
         for i in range(n_repeats):
@@ -888,8 +888,8 @@ def eg__timecheck(file):
             test_rows = all_rows[n_train:n_train+n_test]
             class_vals = list(set(row[class_col_idx] for row in train_rows))
             datasets = [clone(data, [row for row in train_rows if row[class_col_idx] == v]) for v in class_vals]
-            if the.Mode == 'sklearn':
-                calculate_global_category_stats(datasets)
+            # if the.Mode == 'sklearn':
+            #     calculate_global_category_stats(datasets)
             t0 = time.perf_counter()
             for row in test_rows:
                 _ = likes(row, datasets)
