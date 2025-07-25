@@ -191,10 +191,10 @@ def _log_pdf_for_col(value, col):
    if value == "?":
       return 0.0
    
-   if getattr(col, 'it', None) is Sym:
-      n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
-      return (col.has.get(v, 0) + the.Alpha_cnb_sk) / (
-          col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk)
+  #  if getattr(col, 'it', None) is Sym:
+  #     n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
+  #     return (col.has.get(v, 0) + the.Alpha_cnb_sk) / (
+  #         col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk)
    
    mu = col.mu
    sd = col.sd
@@ -677,12 +677,10 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
     class_col_idx = data.cols.klass.at
     class_values = list(set(row[class_col_idx] for row in data.rows))
     assert len(class_values) == 2, "This function assumes exactly 2 classes."
-    
     # Determine which class is positive (minority) and which is negative (majority)
     class_counts = {}
     for val in class_values:
         class_counts[val] = sum(1 for row in data.rows if row[class_col_idx] == val)
-    
     # Minority class is positive, majority class is negative
     pos = min(class_counts, key=class_counts.get)
     neg = max(class_counts, key=class_counts.get)
@@ -705,14 +703,13 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
         step_metrics = []
         no_iterations = len(pool)
         acq = 0
-        
         # Initial evaluation at step 0
         datasets = []
         for val in class_values:
             datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
         # if the.Mode == 'sklearn':
             # calculate_global_category_stats(datasets) # TODO: add this back in when Sym is implemented correctly
-        tp = fp = fn = 0
+        tp = fp = fn = tn = 0
         print(f"Evaluating at step {acq} on all rows")
         for row in data.rows:  # <-- changed from 'for row in pool:'
             predicted_dataset = likes(row, datasets)
@@ -724,15 +721,17 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 fp += 1
             elif predicted_class == neg and actual_class == pos:
                 fn += 1
+            elif predicted_class == neg and actual_class == neg:
+                tn += 1
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        step_metrics.append((precision, recall))
-        
+        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+        print(f"Step {acq}: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        step_metrics.append((precision, recall, false_alarm_pct))
         while pool:
             # Acquire batch_size samples at once (trading accuracy for speed)
             batch_to_acquire = min(batch_size, len(pool))
             acquired_samples = []
-            
             # Compute acquisition scores for all remaining pool samples
             q = initial_q - (initial_q - final_q) * acq / (no_iterations if no_iterations > 0 else 1)
             pool_scores = []
@@ -750,7 +749,6 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 numerator = best + q * rest
                 denominator = abs(q * best - rest) if abs(q * best - rest) > 1e-12 else 1e-12
                 pool_scores.append(numerator / denominator)
-            
             # Select top batch_size samples at once
             for _ in range(batch_to_acquire):
                 if not pool:
@@ -762,10 +760,8 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 pool.pop(best_idx)
                 pool_scores.pop(best_idx)
                 acq += 1
-            
             # Add acquired samples to labeled set
             labeled.extend(acquired_samples)
-            
             # Update datasets incrementally (add new samples to existing datasets)
             for val_idx, val in enumerate(class_values):
                 new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
@@ -775,7 +771,7 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
             #     calculate_global_category_stats(datasets)
             # Evaluate after each batch (except the first one which was already evaluated)
             if acq % batch_size == 0 and acq > 0:
-                tp = fp = fn = 0
+                tp = fp = fn = tn = 0
                 print(f"Evaluating at step {acq} on all rows")
                 for row in data.rows:  # <-- changed from 'for row in pool:'
                     predicted_dataset = likes(row, datasets)
@@ -787,17 +783,21 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                         fp += 1
                     elif predicted_class == neg and actual_class == pos:
                         fn += 1
+                    elif predicted_class == neg and actual_class == neg:
+                        tn += 1
                 precision = tp / (tp + fp) if (tp + fp) > 0 else 0
                 recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-                step_metrics.append((precision, recall))
+                false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+                print(f"Step {acq}: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+                step_metrics.append((precision, recall, false_alarm_pct))
             elif acq > 0:
                 # Set precision and recall to 0 for non-evaluation steps
-                step_metrics.append((0, 0))
-            
+                step_metrics.append((0, 0, 0))
             if not pool:
                 break
         # Final evaluation after all samples have been acquired
         tp = fp = fn = 0
+        tn = 0
         print(f"Final evaluation with all samples acquired on all rows")
         for row in data.rows:
             predicted_dataset = likes(row, datasets)
@@ -809,9 +809,13 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
                 fp += 1
             elif predicted_class == neg and actual_class == pos:
                 fn += 1
+            elif predicted_class == neg and actual_class == neg:
+                tn += 1
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        step_metrics.append((precision, recall))
+        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+        print(f"Final Step: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        step_metrics.append((precision, recall, false_alarm_pct))
         results.append(step_metrics)
     return results
 
@@ -825,14 +829,25 @@ def eg__nbAL(file, repeats=20):
         print(f"Running eg__nbAL on {file} with n_pos={n_pos_val} and repeats={repeats}")
         results = active_learning_uncertainty_loop(data, n_pos=n_pos_val, repeats=repeats)
         if results:
-            n_steps = len(results[0])
-            # For each step, collect all recalls and precisions across repeats
+            # Compute correct number of steps: (total samples - initial labeled set size) + 2
+            N_total = len(data.rows)
+            n_neg = n_pos_val * 4
+            N_labeled = n_pos_val + n_neg
+            n_steps = (N_total - N_labeled) + 2
+            # Pad runs to n_steps if needed
+            for run in results:
+                while len(run) < n_steps:
+                    run.append((None, None, None))
+            # For each step, collect all recalls, precisions, and false alarm rates across repeats
             step_recalls = [[] for _ in range(n_steps)]
             step_precisions = [[] for _ in range(n_steps)]
+            step_false_alarms = [[] for _ in range(n_steps)]
             for run in results:
-                for step in range(len(run)):
-                    step_precisions[step].append(run[step][0])
-                    step_recalls[step].append(run[step][1])
+                for step in range(n_steps):
+                    if run[step][0] is not None:
+                        step_precisions[step].append(run[step][0])
+                        step_recalls[step].append(run[step][1])
+                        step_false_alarms[step].append(run[step][2])
             # Compute Q1, median, Q3 for each step
             def get_quartiles(lst):
                 lst_sorted = sorted(lst)
@@ -849,11 +864,12 @@ def eg__nbAL(file, repeats=20):
                 f"results_uncertainty_{str(the.Mode)}_{n_pos_val}_{base_filename}.csv"
             )
             with open(csv_filename, "w") as f:
-                f.write("step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3\n")
+                f.write("step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3,false_alarm_Q1,false_alarm_median,false_alarm_Q3\n")
                 for step in range(n_steps):
                     recall_q1, recall_median, recall_q3 = get_quartiles(step_recalls[step])
                     precision_q1, precision_median, precision_q3 = get_quartiles(step_precisions[step])
-                    f.write(f"{step},{recall_q1:.4f},{recall_median:.4f},{recall_q3:.4f},{precision_q1:.4f},{precision_median:.4f},{precision_q3:.4f}\n")
+                    false_alarm_q1, false_alarm_median, false_alarm_q3 = get_quartiles(step_false_alarms[step])
+                    f.write(f"{step},{recall_q1:.4f},{recall_median:.4f},{recall_q3:.4f},{precision_q1:.4f},{precision_median:.4f},{precision_q3:.4f},{false_alarm_q1:.4f},{false_alarm_median:.4f},{false_alarm_q3:.4f}\n")
     return
 
 #--------- --------- --------- --------- --------- --------- ------- -------
@@ -891,12 +907,85 @@ def eg__timecheck(file):
             # if the.Mode == 'sklearn':
             #     calculate_global_category_stats(datasets)
             t0 = time.perf_counter()
+            # --- Begin evaluation for false alarm calculation ---
+            tp = fp = fn = tn = 0
             for row in test_rows:
-                _ = likes(row, datasets)
+                predicted_dataset = likes(row, datasets)
+                predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+                actual_class = row[class_col_idx]
+                # Assume the first class in class_vals is positive, second is negative
+                pos = class_vals[0]
+                neg = class_vals[1] if len(class_vals) > 1 else None
+                if actual_class == pos and predicted_class == pos:
+                    tp += 1
+                elif actual_class == pos and predicted_class == neg:
+                    fn += 1
+                elif actual_class == neg and predicted_class == pos:
+                    fp += 1
+                elif actual_class == neg and predicted_class == neg:
+                    tn += 1
             t1 = time.perf_counter()
             predict_times.append((t1 - t0) * 1000)  # ms
-            print(f"Predict time for repeat {i}: {predict_times[-1]} ms")
+            # Calculate false alarm %
+            false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+            print(f"Predict time for repeat {i}: {predict_times[-1]} ms, False alarm %: {false_alarm_pct:.2f}%")
         mean_pred = sum(predict_times) / len(predict_times)
         print(o(mode=mode, avg_inference_time_ms=mean_pred, n=n_repeats))
+
+def eg__naive(file):
+    """
+    Trains on all samples and tests on all samples. Prints a table with tn, fn, fp, tp, pd, prec, pf, acc for each label and overall.
+    """
+    data = Data(csv(file or the.file))
+    class_col_idx = data.cols.klass.at
+    class_values = list(sorted(set(row[class_col_idx] for row in data.rows)))
+    datasets = [clone(data, [row for row in data.rows if row[class_col_idx] == v]) for v in class_values]
+    # if the.Mode == 'sklearn':
+    #     calculate_global_category_stats(datasets)
+    # Prepare confusion matrix for each class
+    results = {v: {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0} for v in class_values}
+    for row in data.rows:
+        actual = row[class_col_idx]
+        predicted_dataset = likes(row, datasets)
+        predicted = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+        for v in class_values:
+            if actual == v and predicted == v:
+                results[v]['tp'] += 1
+            elif actual == v and predicted != v:
+                results[v]['fn'] += 1
+            elif actual != v and predicted == v:
+                results[v]['fp'] += 1
+            elif actual != v and predicted != v:
+                results[v]['tn'] += 1
+    # Compute metrics and print table
+    def safe_div(a, b):
+        return a / b if b else 0
+    print(f"{'Label':>10} {'TN':>6} {'FN':>6} {'FP':>6} {'TP':>6} {'PD':>8} {'Prec':>8} {'PF':>8} {'Acc':>8}")
+    print(f"{'-'*10} {'-'*6} {'-'*6} {'-'*6} {'-'*6} {'-'*8} {'-'*8} {'-'*8} {'-'*8}")
+    total = {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0}
+    for v in class_values:
+        tp = results[v]['tp']
+        fp = results[v]['fp']
+        tn = results[v]['tn']
+        fn = results[v]['fn']
+        total['tp'] += tp
+        total['fp'] += fp
+        total['tn'] += tn
+        total['fn'] += fn
+        pd = safe_div(tp, tp + fn)  # recall
+        prec = safe_div(tp, tp + fp)
+        pf = safe_div(fp, fp + tn)
+        acc = safe_div(tp + tn, tp + tn + fp + fn)
+        print(f"{str(v):>10} {tn:6} {fn:6} {fp:6} {tp:6} {pd:8.3f} {prec:8.3f} {pf:8.3f} {acc:8.3f}")
+    # Overall
+    tp = total['tp']
+    fp = total['fp']
+    tn = total['tn']
+    fn = total['fn']
+    pd = safe_div(tp, tp + fn)
+    prec = safe_div(tp, tp + fp)
+    pf = safe_div(fp, fp + tn)
+    acc = safe_div(tp + tn, tp + tn + fp + fn)
+    print(f"{'ALL':>10} {tn:6} {fn:6} {fp:6} {tp:6} {pd:8.3f} {prec:8.3f} {pf:8.3f} {acc:8.3f}")
 
 if __name__ == "__main__":  main()

@@ -15,7 +15,7 @@ def load_and_normalize(file_path):
     y = df[label_col].values
     # Encode labels if needed
     if y.dtype == object:
-        y = np.array([1 if v in ('yes', 1, '1', 'Y', 'true', 'True') else 0 for v in y])
+        y = np.array([1 if str(v).lower() in ('yes', '1', 'y', 'true', 'positive') else 0 for v in y])
     scaler = MinMaxScaler()
     X = scaler.fit_transform(X)
     return X, y
@@ -45,7 +45,12 @@ def active_learning(X, y, n_pos=8, repeats=10, batch_size=1000, random_seed=42):
         y_pred = model.predict(X)
         precision = precision_score(y, y_pred, zero_division=0)
         recall = recall_score(y, y_pred, zero_division=0)
-        step_metrics.append((precision, recall))
+        # Calculate and print false alarm rate
+        fp = np.sum((y_pred == pos_label) & (y == neg_label))
+        tn = np.sum((y_pred == neg_label) & (y == neg_label))
+        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+        print(f"    [Repeat {rep+1}] Initial: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        step_metrics.append((precision, recall, false_alarm_pct))
         acq = 0
         no_iterations = len(pool)
         while pool:
@@ -70,27 +75,39 @@ def active_learning(X, y, n_pos=8, repeats=10, batch_size=1000, random_seed=42):
             print(f"    [Repeat {rep+1}] Evaluation after acquisition.")
             precision = precision_score(y, y_pred, zero_division=0)
             recall = recall_score(y, y_pred, zero_division=0)
-            step_metrics.append((precision, recall))
+            # Calculate and print false alarm rate
+            fp = np.sum((y_pred == pos_label) & (y == neg_label))
+            tn = np.sum((y_pred == neg_label) & (y == neg_label))
+            false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+            print(f"    [Repeat {rep+1}] Step: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+            step_metrics.append((precision, recall, false_alarm_pct))
         print(f"  [Repeat {rep+1}] Final evaluation with all samples acquired.")
         y_pred = model.predict(X)
         precision = precision_score(y, y_pred, zero_division=0)
         recall = recall_score(y, y_pred, zero_division=0)
-        step_metrics.append((precision, recall))
+        # Calculate and print false alarm rate
+        fp = np.sum((y_pred == pos_label) & (y == neg_label))
+        tn = np.sum((y_pred == neg_label) & (y == neg_label))
+        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+        print(f"  [Repeat {rep+1}] Final: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        step_metrics.append((precision, recall, false_alarm_pct))
         results.append(step_metrics)
     return results
 
 def aggregate_and_save(results, out_csv):
-    # results: list of [ (precision, recall), ... ] for each repeat
+    # results: list of [ (precision, recall, false_alarm), ... ] for each repeat
     if not results:
         print("No results to save.")
         return
     n_steps = max(len(run) for run in results)
     step_precisions = [[] for _ in range(n_steps)]
     step_recalls = [[] for _ in range(n_steps)]
+    step_false_alarms = [[] for _ in range(n_steps)]
     for run in results:
-        for i, (prec, rec) in enumerate(run):
+        for i, (prec, rec, false_alarm) in enumerate(run):
             step_precisions[i].append(prec)
             step_recalls[i].append(rec)
+            step_false_alarms[i].append(false_alarm)
     def get_quartiles(lst):
         arr = np.array(lst)
         q1 = np.percentile(arr, 25) if len(arr) else 0
@@ -98,11 +115,12 @@ def aggregate_and_save(results, out_csv):
         q3 = np.percentile(arr, 75) if len(arr) else 0
         return q1, median, q3
     with open(out_csv, 'w') as f:
-        f.write('step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3\n')
+        f.write('step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3,false_alarm_Q1,false_alarm_median,false_alarm_Q3\n')
         for i in range(n_steps):
             rq1, rmed, rq3 = get_quartiles(step_recalls[i])
             pq1, pmed, pq3 = get_quartiles(step_precisions[i])
-            f.write(f'{i},{rq1:.4f},{rmed:.4f},{rq3:.4f},{pq1:.4f},{pmed:.4f},{pq3:.4f}\n')
+            faq1, famed, faq3 = get_quartiles(step_false_alarms[i])
+            f.write(f'{i},{rq1:.4f},{rmed:.4f},{rq3:.4f},{pq1:.4f},{pmed:.4f},{pq3:.4f},{faq1:.4f},{famed:.4f},{faq3:.4f}\n')
     print(f"Results saved to {out_csv}")
 
 def main():

@@ -53,9 +53,9 @@ def compare_and_plot_datasets(start, datasets):
     os.makedirs(img_dir, exist_ok=True)
     # Only save the all models & processing recall plot for each dataset
     for dataset in datasets:
+        # --- Recall plot ---
         plt.figure(figsize=(12, 7))
         found = False
-        # Use a color palette for better visibility
         import itertools
         color_palette = sns.color_palette('tab10', n_colors=6)
         color_cycle = itertools.cycle(color_palette)
@@ -75,16 +75,41 @@ def compare_and_plot_datasets(start, datasets):
             plt.title(f'Recall (Median) vs Step - {dataset} (all models & processing, start={start})', fontsize=16, pad=20)
             plt.legend(title='Model-Processing', fontsize=12, title_fontsize=13, loc='lower right', frameon=True)
             plt.tight_layout(rect=[0, 0.08, 1, 1])
-            # Add explanation note at the bottom
             note = (
                 "Model key: bl = Original BL, bl_new = BL with sklearn implementation, sklearn = GaussianNB (sklearn).\n"
                 "Preprocessing: minimal = minimal preprocessing, NLTK = NLTK-based preprocessing.\n"
                 "Shaded area: Interquartile range (Q1-Q3) of recall."
             )
-            # Place the note just below the x-axis label
             plt.gcf().text(0.5, -0.12, note, ha='center', va='top', fontsize=10, wrap=True, transform=plt.gca().transAxes)
             recall_plot_path = os.path.join(img_dir, f'recall_median_vs_step_ALLMODELS_start{start}_{dataset}_minimal_vs_NLTK.png')
             plt.savefig(recall_plot_path, bbox_inches='tight')
+            plt.close()
+        # --- False alarm rate plot ---
+        plt.figure(figsize=(12, 7))
+        found = False
+        color_cycle = itertools.cycle(color_palette)
+        for model in models:
+            for proc in procs:
+                df = results[model][proc].get(dataset)
+                if df is not None and 'false_alarm_median' in df.columns:
+                    color = next(color_cycle)
+                    plt.plot(df['step'], df['false_alarm_median'], label=f'{model_map[model]}-{proc_map[proc]}', color=color, linewidth=2)
+                    plt.fill_between(df['step'], df['false_alarm_Q1'], df['false_alarm_Q3'], color=color, alpha=0.2)
+                    found = True
+        if found:
+            plt.xlabel('Step', fontsize=14)
+            plt.ylabel('False Alarm Rate (%) (Median)', fontsize=14)
+            plt.title(f'False Alarm Rate (Median) vs Step - {dataset} (all models & processing, start={start})', fontsize=16, pad=20)
+            plt.legend(title='Model-Processing', fontsize=12, title_fontsize=13, loc='upper right', frameon=True)
+            plt.tight_layout(rect=[0, 0.08, 1, 1])
+            note = (
+                "Model key: bl = Original BL, bl_new = BL with sklearn implementation, sklearn = GaussianNB (sklearn).\n"
+                "Preprocessing: minimal = minimal preprocessing, NLTK = NLTK-based preprocessing.\n"
+                "Shaded area: Interquartile range (Q1-Q3) of false alarm rate."
+            )
+            plt.gcf().text(0.5, -0.12, note, ha='center', va='top', fontsize=10, wrap=True, transform=plt.gca().transAxes)
+            fa_plot_path = os.path.join(img_dir, f'false_alarm_median_vs_step_ALLMODELS_start{start}_{dataset}_minimal_vs_NLTK.png')
+            plt.savefig(fa_plot_path, bbox_inches='tight')
             plt.close()
     print(f"Recall plots (all models & processing) saved in {img_dir}")
 
@@ -92,7 +117,7 @@ def main():
     # Usage: python compare_al_results.py <start> [<dataset_name>]
     if len(sys.argv) == 2:
         start = sys.argv[1]
-        datasets = ['Hall', 'Kitchenham', 'Wahono', 'Radjenovic']
+        datasets = ['Hall', 'Kitchenham', 'Wahono', 'Radjenovic', 'diabetes']
         compare_and_plot_datasets(start, datasets)
     elif len(sys.argv) == 3:
         start = sys.argv[1]
