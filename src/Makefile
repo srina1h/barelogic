@@ -312,5 +312,5 @@ wah_sk_min:
 rad_sk_pre:
 	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
 
-rad_sk_min
+rad_sk_min:
 	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
