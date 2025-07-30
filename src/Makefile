@@ -4,6 +4,8 @@
 #
 # prints the help text.
 
+PYTHON_VER = python3.10
+
 SHELL     := bash
 MAKEFLAGS += --warn-undefined-variables
 .SILENT:
@@ -217,49 +219,49 @@ nbal_sk_min:
 exp_2_nbal_hall:
 	@echo "Running eg__nbAL on Hall sk + bl / minimal + preprocessed"
 
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
 exp_2_nbal_kitchenham:
 	@echo "Running eg__nbAL on Kitchenham sk + bl / minimal + preprocessed"
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
 
 exp_2_nbal_Wahono:
 	@echo "Running eg__nbAL on Wahono sk + bl / minimal + preprocessed"
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
 
 exp_2_nbal_Radjenovic:
 	@echo "Running eg__nbAL on Radjenovic sk + bl / minimal + preprocessed"
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
-	python3.10 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	$(PYTHON_VER) -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
 
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
-	python3.10 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
 
 
 nbskal:
-	python3.9 -m pip install scikit-learn pandas numpy
+	$(PYTHON_VER) -m pip install scikit-learn pandas numpy
 	@echo "Running nb_sk_al.py on all preprocessed and minimally processed datasets with n_pos=8,16,32"
 	mkdir -p results_al
 	for n in 8 16 32; do \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_preprocessed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_preprocessed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_preprocessed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Wahono_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Wahono_preprocessed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_minimally_processed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_minimally_processed.csv; \
-	  python3.9 -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_minimally_processed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_preprocessed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_preprocessed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_preprocessed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/preprocessed_Wahono_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Wahono_preprocessed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Hall_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Hall_minimally_processed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Kitchenham_minimally_processed.csv; \
+	  $(PYTHON_VER) -B nb_sk_al.py --input $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv --n_pos $${n} --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_$${n}_Radjenovic_minimally_processed.csv; \
 	done
 
 exp_diabetes_al:
@@ -288,3 +290,27 @@ test_full:
 
 	python3 -B bl-added.py -M bl --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num_copy.csv
 	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num_copy.csv
+
+test_parallelized:
+	$(PYTHON_VER) -B bl_p.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num_copy.csv
+
+test_baseline_p:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num_copy.csv
+
+hall_sk_pre:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
+
+hall_sk_min:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+
+wah_sk_pre:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
+
+wah_sk_min:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
+
+rad_sk_pre:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
+
+rad_sk_min
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv

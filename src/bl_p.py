@@ -673,150 +673,155 @@ def eg__nbfew(file):
         for row in results:
             f.write(",".join(row) + "\n")
 
+# Helper function for a single repeat (must be top-level for pickling)
+def _run_single_repeat(i, data, n_pos, initial_q, final_q, batch_size, class_col_idx, class_values, pos, neg):
+    import random
+    import os
+    import time
+    random.seed(i)  # Ensure deterministic sampling per repeat
+    start_time = time.time()
+    print(f"[PID {os.getpid()}] Starting repeat {i}")
+    # Deepcopy data to avoid cross-process contamination
+    data = copy.deepcopy(data)
+    positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
+    negative_samples = [row for row in data.rows if row[class_col_idx] == neg]
+    if len(positive_samples) < n_pos or len(negative_samples) < n_pos * 4:
+        print(f"[PID {os.getpid()}] Skipping repeat {i}: insufficient samples (pos: {len(positive_samples)}, neg: {len(negative_samples)})")
+        return None
+    selected_pos = random.sample(positive_samples, n_pos)
+    selected_neg = random.sample(negative_samples, n_pos * 4)
+    labeled = selected_pos + selected_neg
+    pool = [row for row in data.rows if row not in labeled]
+    step_metrics = []
+    no_iterations = len(pool)
+    acq = 0
+    datasets = []
+    for val in class_values:
+        datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
+    tp = fp = fn = tn = 0
+    for row in data.rows:
+        predicted_dataset = likes(row, datasets)
+        predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+        actual_class = row[class_col_idx]
+        if predicted_class == pos and actual_class == pos:
+            tp += 1
+        elif predicted_class == pos and actual_class == neg:
+            fp += 1
+        elif predicted_class == neg and actual_class == pos:
+            fn += 1
+        elif predicted_class == neg and actual_class == neg:
+            tn += 1
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+    step_metrics.append((precision, recall, false_alarm_pct))
+    while pool:
+        batch_to_acquire = min(batch_size, len(pool))
+        acquired_samples = []
+        q = initial_q - (initial_q - final_q) * acq / (no_iterations if no_iterations > 0 else 1)
+        pool_scores = []
+        for row in pool:
+            logps = []
+            for dset in datasets:
+                logp = like(row, dset, nall=sum(d.n for d in datasets), nh=len(datasets))
+                logps.append(logp)
+            max_logp = max(logps)
+            probs = [math.exp(lp - max_logp) for lp in logps]
+            total = sum(probs)
+            probs = [p / total for p in probs]
+            best = max(probs)
+            rest = min(probs)
+            numerator = best + q * rest
+            denominator = abs(q * best - rest) if abs(q * best - rest) > 1e-12 else 1e-12
+            pool_scores.append(numerator / denominator)
+        for _ in range(batch_to_acquire):
+            if not pool:
+                break
+            best_idx = max(range(len(pool)), key=lambda i: pool_scores[i])
+            acquired_samples.append(pool[best_idx])
+            pool.pop(best_idx)
+            pool_scores.pop(best_idx)
+            acq += 1
+        labeled.extend(acquired_samples)
+        for val_idx, val in enumerate(class_values):
+            new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
+            for row in new_samples:
+                add(row, datasets[val_idx])
+        if acq % batch_size == 0 and acq > 0:
+            tp = fp = fn = tn = 0
+            for row in data.rows:
+                predicted_dataset = likes(row, datasets)
+                predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+                actual_class = row[class_col_idx]
+                if predicted_class == pos and actual_class == pos:
+                    tp += 1
+                elif predicted_class == pos and actual_class == neg:
+                    fp += 1
+                elif predicted_class == neg and actual_class == pos:
+                    fn += 1
+                elif predicted_class == neg and actual_class == neg:
+                    tn += 1
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+            step_metrics.append((precision, recall, false_alarm_pct))
+        elif acq > 0:
+            step_metrics.append((0, 0, 0))
+        if not pool:
+            break
+    tp = fp = fn = tn = 0
+    for row in data.rows:
+        predicted_dataset = likes(row, datasets)
+        predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
+        actual_class = row[class_col_idx]
+        if predicted_class == pos and actual_class == pos:
+            tp += 1
+        elif predicted_class == pos and actual_class == neg:
+            fp += 1
+        elif predicted_class == neg and actual_class == pos:
+            fn += 1
+        elif predicted_class == neg and actual_class == neg:
+            tn += 1
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
+    step_metrics.append((precision, recall, false_alarm_pct))
+    end_time = time.time()
+    print(f"[PID {os.getpid()}] Finished repeat {i} in {end_time - start_time:.2f} seconds")
+    return step_metrics
+
 def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
     class_col_idx = data.cols.klass.at
-    class_values = list(set(row[class_col_idx] for row in data.rows))
+    class_values = sorted(set(row[class_col_idx] for row in data.rows))
     assert len(class_values) == 2, "This function assumes exactly 2 classes."
-    # Determine which class is positive (minority) and which is negative (majority)
     class_counts = {}
     for val in class_values:
         class_counts[val] = sum(1 for row in data.rows if row[class_col_idx] == val)
-    # Minority class is positive, majority class is negative
     pos = min(class_counts, key=class_counts.get)
     neg = max(class_counts, key=class_counts.get)
-    results = []
     initial_q = 1
     final_q = 0
     batch_size = 1
-    for i in range(repeats):
-        print(f"Running eg__nbAL with n_pos={n_pos} and repeats={repeats} for iteration {i}")
-        positive_samples = [row for row in data.rows if row[class_col_idx] == pos]
-        negative_samples = [row for row in data.rows if row[class_col_idx] == neg]
-        print(f"Found {len(positive_samples)} positive and {len(negative_samples)} negative samples")
-        if len(positive_samples) < n_pos or len(negative_samples) < n_pos * 4:
-            print(f"Skipping iteration {i}: insufficient samples (pos: {len(positive_samples)}, neg: {len(negative_samples)})")
-            continue
-        selected_pos = random.sample(positive_samples, n_pos)
-        selected_neg = random.sample(negative_samples, n_pos * 4)
-        labeled = selected_pos + selected_neg
-        pool = [row for row in data.rows if row not in labeled]
-        step_metrics = []
-        no_iterations = len(pool)
-        acq = 0
-        # Initial evaluation at step 0
-        datasets = []
-        for val in class_values:
-            datasets.append(clone(data, [row for row in labeled if row[class_col_idx] == val]))
-        # if the.Mode == 'sklearn':
-            # calculate_global_category_stats(datasets) # TODO: add this back in when Sym is implemented correctly
-        tp = fp = fn = tn = 0
-        print(f"Evaluating at step {acq} on all rows")
-        for row in data.rows:  # <-- changed from 'for row in pool:'
-            predicted_dataset = likes(row, datasets)
-            predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
-            actual_class = row[class_col_idx]
-            if predicted_class == pos and actual_class == pos:
-                tp += 1
-            elif predicted_class == pos and actual_class == neg:
-                fp += 1
-            elif predicted_class == neg and actual_class == pos:
-                fn += 1
-            elif predicted_class == neg and actual_class == neg:
-                tn += 1
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-        print(f"Repeat {i} Step {acq}: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
-        step_metrics.append((precision, recall, false_alarm_pct))
-        while pool:
-            # Acquire batch_size samples at once (trading accuracy for speed)
-            batch_to_acquire = min(batch_size, len(pool))
-            acquired_samples = []
-            # Compute acquisition scores for all remaining pool samples
-            q = initial_q - (initial_q - final_q) * acq / (no_iterations if no_iterations > 0 else 1)
-            pool_scores = []
-            for row in pool:
-                logps = []
-                for dset in datasets:
-                    logp = like(row, dset, nall=sum(d.n for d in datasets), nh=len(datasets))
-                    logps.append(logp)
-                max_logp = max(logps)
-                probs = [math.exp(lp - max_logp) for lp in logps]
-                total = sum(probs)
-                probs = [p / total for p in probs]
-                best = max(probs)
-                rest = min(probs)
-                numerator = best + q * rest
-                denominator = abs(q * best - rest) if abs(q * best - rest) > 1e-12 else 1e-12
-                pool_scores.append(numerator / denominator)
-            # Select top batch_size samples at once
-            for _ in range(batch_to_acquire):
-                if not pool:
-                    break
-                # Find the sample with highest score
-                best_idx = max(range(len(pool)), key=lambda i: pool_scores[i])
-                acquired_samples.append(pool[best_idx])
-                # Remove from pool and scores
-                pool.pop(best_idx)
-                pool_scores.pop(best_idx)
-                acq += 1
-            # Add acquired samples to labeled set
-            labeled.extend(acquired_samples)
-            # Update datasets incrementally (add new samples to existing datasets)
-            for val_idx, val in enumerate(class_values):
-                new_samples = [row for row in acquired_samples if row[class_col_idx] == val]
-                for row in new_samples:
-                    add(row, datasets[val_idx])
-            # if the.Mode == 'sklearn':
-            #     calculate_global_category_stats(datasets)
-            # Evaluate after each batch (except the first one which was already evaluated)
-            if acq % batch_size == 0 and acq > 0:
-                tp = fp = fn = tn = 0
-                print(f"Evaluating at step {acq} on all rows")
-                for row in data.rows:  # <-- changed from 'for row in pool:'
-                    predicted_dataset = likes(row, datasets)
-                    predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
-                    actual_class = row[class_col_idx]
-                    if predicted_class == pos and actual_class == pos:
-                        tp += 1
-                    elif predicted_class == pos and actual_class == neg:
-                        fp += 1
-                    elif predicted_class == neg and actual_class == pos:
-                        fn += 1
-                    elif predicted_class == neg and actual_class == neg:
-                        tn += 1
-                precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-                recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-                false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-                print(f"Repeat {i} Step {acq}: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
-                step_metrics.append((precision, recall, false_alarm_pct))
-            elif acq > 0:
-                # Set precision and recall to 0 for non-evaluation steps
-                step_metrics.append((0, 0, 0))
-            if not pool:
-                break
-        # Final evaluation after all samples have been acquired
-        tp = fp = fn = 0
-        tn = 0
-        print(f"Final evaluation with all samples acquired on all rows")
-        for row in data.rows:
-            predicted_dataset = likes(row, datasets)
-            predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
-            actual_class = row[class_col_idx]
-            if predicted_class == pos and actual_class == pos:
-                tp += 1
-            elif predicted_class == pos and actual_class == neg:
-                fp += 1
-            elif predicted_class == neg and actual_class == pos:
-                fn += 1
-            elif predicted_class == neg and actual_class == neg:
-                tn += 1
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-        print(f"Final Step: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
-        step_metrics.append((precision, recall, false_alarm_pct))
-        results.append(step_metrics)
+    results = []
+    print(f"[Main PID {os.getpid()}] Submitting {repeats} repeats for parallel execution...")
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        future_to_index = {
+            executor.submit(
+                _run_single_repeat, i, data, n_pos, initial_q, final_q, batch_size, class_col_idx, class_values, pos, neg
+            ): i
+            for i in range(repeats)
+        }
+        indexed_results = []
+        for future in concurrent.futures.as_completed(future_to_index):
+            i = future_to_index[future]
+            print(f"[Main PID {os.getpid()}] Collecting result for repeat {i}")
+            step_metrics = future.result()
+            if step_metrics is not None:
+                indexed_results.append((i, step_metrics))
+        # Sort results by repeat index
+        indexed_results.sort(key=lambda x: x[0])
+        results = [step_metrics for i, step_metrics in indexed_results]
+    print(f"[Main PID {os.getpid()}] All repeats completed.")
     return results
 
 # Update eg__nbAL to optionally use the uncertainty loop
