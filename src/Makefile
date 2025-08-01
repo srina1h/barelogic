@@ -360,7 +360,7 @@ hall_sk_min_8:
 
 hall_sk_pre_16:
 	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 16
-ß
+
 hall_sk_pre_32:
 	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 32
 
