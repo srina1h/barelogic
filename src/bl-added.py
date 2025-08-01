@@ -821,55 +821,55 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
 
 # Update eg__nbAL to optionally use the uncertainty loop
 # Usage: eg__nbAL(file, repeats=100, acq_mode='uncertainty')
-def eg__nbAL(file, repeats=20):
+def eg__nbAL(file, n_pos_val = 8, repeats=20):
     data = Data(csv(file or the.file))
     base_filename = os.path.splitext(os.path.basename(file))[0]
-    n_pos_values = [8, 16, 32]
-    for n_pos_val in n_pos_values:
-        print(f"Running eg__nbAL on {file} with n_pos={n_pos_val} and repeats={repeats}")
-        results = active_learning_uncertainty_loop(data, n_pos=n_pos_val, repeats=repeats)
-        if results:
-            # Compute correct number of steps: (total samples - initial labeled set size) + 2
-            N_total = len(data.rows)
-            n_neg = n_pos_val * 4
-            N_labeled = n_pos_val + n_neg
-            n_steps = (N_total - N_labeled) + 2
-            # Pad runs to n_steps if needed
-            for run in results:
-                while len(run) < n_steps:
-                    run.append((None, None, None))
-            # For each step, collect all recalls, precisions, and false alarm rates across repeats
-            step_recalls = [[] for _ in range(n_steps)]
-            step_precisions = [[] for _ in range(n_steps)]
-            step_false_alarms = [[] for _ in range(n_steps)]
-            for run in results:
-                for step in range(n_steps):
-                    if run[step][0] is not None:
-                        step_precisions[step].append(run[step][0])
-                        step_recalls[step].append(run[step][1])
-                        step_false_alarms[step].append(run[step][2])
-            # Compute Q1, median, Q3 for each step
-            def get_quartiles(lst):
-                lst_sorted = sorted(lst)
-                n = len(lst_sorted)
-                q1 = lst_sorted[n // 4] if n > 0 else 0
-                median = lst_sorted[n // 2] if n > 0 else 0
-                q3 = lst_sorted[(3 * n) // 4] if n > 0 else 0
-                return q1, median, q3
-            # Save to CSV
-            results_dir = os.path.join(os.getcwd(), "results_al")
-            os.makedirs(results_dir, exist_ok=True)
-            csv_filename = os.path.join(
-                results_dir,
-                f"results_uncertainty_{str(the.Mode)}_{n_pos_val}_{base_filename}.csv"
-            )
-            with open(csv_filename, "w") as f:
-                f.write("step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3,false_alarm_Q1,false_alarm_median,false_alarm_Q3\n")
-                for step in range(n_steps):
-                    recall_q1, recall_median, recall_q3 = get_quartiles(step_recalls[step])
-                    precision_q1, precision_median, precision_q3 = get_quartiles(step_precisions[step])
-                    false_alarm_q1, false_alarm_median, false_alarm_q3 = get_quartiles(step_false_alarms[step])
-                    f.write(f"{step},{recall_q1:.4f},{recall_median:.4f},{recall_q3:.4f},{precision_q1:.4f},{precision_median:.4f},{precision_q3:.4f},{false_alarm_q1:.4f},{false_alarm_median:.4f},{false_alarm_q3:.4f}\n")
+    # n_pos_values = [8, 16, 32]
+    # for n_pos_val in n_pos_values:
+    print(f"Running eg__nbAL on {file} with n_pos={n_pos_val} and repeats={repeats}")
+    results = active_learning_uncertainty_loop(data, n_pos=n_pos_val, repeats=repeats)
+    if results:
+        # Compute correct number of steps: (total samples - initial labeled set size) + 2
+        N_total = len(data.rows)
+        n_neg = n_pos_val * 4
+        N_labeled = n_pos_val + n_neg
+        n_steps = (N_total - N_labeled) + 2
+        # Pad runs to n_steps if needed
+        for run in results:
+            while len(run) < n_steps:
+                run.append((None, None, None))
+        # For each step, collect all recalls, precisions, and false alarm rates across repeats
+        step_recalls = [[] for _ in range(n_steps)]
+        step_precisions = [[] for _ in range(n_steps)]
+        step_false_alarms = [[] for _ in range(n_steps)]
+        for run in results:
+            for step in range(n_steps):
+                if run[step][0] is not None:
+                    step_precisions[step].append(run[step][0])
+                    step_recalls[step].append(run[step][1])
+                    step_false_alarms[step].append(run[step][2])
+        # Compute Q1, median, Q3 for each step
+        def get_quartiles(lst):
+            lst_sorted = sorted(lst)
+            n = len(lst_sorted)
+            q1 = lst_sorted[n // 4] if n > 0 else 0
+            median = lst_sorted[n // 2] if n > 0 else 0
+            q3 = lst_sorted[(3 * n) // 4] if n > 0 else 0
+            return q1, median, q3
+        # Save to CSV
+        results_dir = os.path.join(os.getcwd(), "results_al")
+        os.makedirs(results_dir, exist_ok=True)
+        csv_filename = os.path.join(
+            results_dir,
+            f"results_uncertainty_{str(the.Mode)}_{n_pos_val}_{base_filename}.csv"
+        )
+        with open(csv_filename, "w") as f:
+            f.write("step,recall_Q1,recall_median,recall_Q3,precision_Q1,precision_median,precision_Q3,false_alarm_Q1,false_alarm_median,false_alarm_Q3\n")
+            for step in range(n_steps):
+                recall_q1, recall_median, recall_q3 = get_quartiles(step_recalls[step])
+                precision_q1, precision_median, precision_q3 = get_quartiles(step_precisions[step])
+                false_alarm_q1, false_alarm_median, false_alarm_q3 = get_quartiles(step_false_alarms[step])
+                f.write(f"{step},{recall_q1:.4f},{recall_median:.4f},{recall_q3:.4f},{precision_q1:.4f},{precision_median:.4f},{precision_q3:.4f},{false_alarm_q1:.4f},{false_alarm_median:.4f},{false_alarm_q3:.4f}\n")
     return
 
 #--------- --------- --------- --------- --------- --------- ------- -------

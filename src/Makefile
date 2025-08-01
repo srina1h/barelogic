@@ -314,3 +314,42 @@ rad_sk_pre:
 
 rad_sk_min:
 	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
+
+
+# ADDING NEW SETS WITH INDIVIDUAL N_POS VALS
+
+rad_sk_pre_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv 16
+
+rad_sk_pre_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv 32
+
+rad_sk_min_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv 16
+
+rad_sk_min_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv 32
+
+wah_sk_pre_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv 16
+
+wah_sk_pre_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv 32
+
+wah_sk_min_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv 16
+
+wah_sk_min_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv 32
+
+hall_sk_pre_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 16
+
+hall_sk_pre_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 32
+
+hall_sk_min_16:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv 16
+
+hall_sk_min_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv 32
