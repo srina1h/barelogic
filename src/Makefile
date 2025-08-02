@@ -4,7 +4,7 @@
 #
 # prints the help text.
 
-PYTHON_VER = python3.10
+PYTHON_VER = python3
 
 SHELL     := bash
 MAKEFLAGS += --warn-undefined-variables
@@ -319,53 +319,53 @@ rad_sk_min:
 # ADDING NEW SETS WITH INDIVIDUAL N_POS VALS
 
 rad_sk_pre_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
 
 rad_sk_pre_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/preprocessed_Radjenovic_num.csv
 
 rad_sk_min_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
 
 rad_sk_min_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/minimally_processed_Radjenovic_num.csv
 
 # ADDING ALL for wahono
 
 wah_sk_pre_8:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv 8
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 8 --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
 
 wah_sk_min_8:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv 8
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 8 --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
 
 wah_sk_pre_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
 
 wah_sk_pre_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/preprocessed_Wahono_num.csv
 
 wah_sk_min_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
 
 wah_sk_min_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/minimally_processed_Wahono_num.csv
 
 # ADDING ALL for hall
 
 hall_sk_pre_8:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 8
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 8 --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
 
 hall_sk_min_8:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv 8
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 8 --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
 hall_sk_pre_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
 
 hall_sk_pre_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/preprocessed_Hall_num.csv
 
 hall_sk_min_16:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv 16
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 16 --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
 
 hall_sk_min_32:
-	$(PYTHON_VER) -B bl-added.py -M sklearn --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv 32
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv

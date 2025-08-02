@@ -30,7 +30,8 @@ OPTIONS:
       -M Mode       bl or sklearn      = bl 
       -v var_smoothing_gnb_sk      variance smoothing (sklearn mode)         = 1e-9 
       -A Alpha_cnb_sk      alpha for bayes smoothing (sklearn mode)   = 1.0 
-      -e eps_sk    constant (sklearn mode)                    = 1e-30  
+      -e eps_sk    constant (sklearn mode)                    = 1e-30 
+      -n n_pos     number of positive examples (sklearn mode) = 8
 """
 import re,sys,math,time,random,os
 import copy
@@ -821,7 +822,8 @@ def active_learning_uncertainty_loop(data, n_pos=8, repeats=10):
 
 # Update eg__nbAL to optionally use the uncertainty loop
 # Usage: eg__nbAL(file, repeats=100, acq_mode='uncertainty')
-def eg__nbAL(file, n_pos_val = 8, repeats=20):
+def eg__nbAL(file, repeats=20):
+    n_pos_val = the.n_pos
     data = Data(csv(file or the.file))
     base_filename = os.path.splitext(os.path.basename(file))[0]
     # n_pos_values = [8, 16, 32]
