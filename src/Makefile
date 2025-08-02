@@ -4,7 +4,7 @@
 #
 # prints the help text.
 
-PYTHON_VER = python3
+PYTHON_VER = python3.10
 
 SHELL     := bash
 MAKEFLAGS += --warn-undefined-variables
