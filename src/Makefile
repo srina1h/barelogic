@@ -369,3 +369,6 @@ hall_sk_min_16:
 
 hall_sk_min_32:
 	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/minimally_processed_Hall_num.csv
+
+kit_sk_min_32:
+	$(PYTHON_VER) -B bl-added.py -M sklearn -n 32 --nbAL $(parent_dir)/test_data/minimally_processed_Kitchenham_num.csv
