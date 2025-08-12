@@ -265,7 +265,6 @@ nbskal:
 	done
 
 nbskal_modified_prep:
-	mkdir -p results_al
 	python -B nb_sk_al.py --input $(parent_dir)/test_data/Hall_minimally_processed.csv --n_pos 8 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_8_Hall_new_prep.csv &
 	python -B nb_sk_al.py --input $(parent_dir)/test_data/Kitchenham_minimally_processed.csv --n_pos 8 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_8_Kitchenham_new_prep.csv &
 	python -B nb_sk_al.py --input $(parent_dir)/test_data/Radjenovic_minimally_processed.csv --n_pos 8 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_8_Radjenovic_new_prep.csv & 
