@@ -279,6 +279,21 @@ nbskal_modified_prep:
 	python -B nb_sk_al.py --input $(parent_dir)/test_data/Wahono_minimally_processed.csv --n_pos 32 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_32_Wahono_new_prep.csv
 	wait
 
+nb_n_h8:
+	python -B nb_sk_al.py --input $(parent_dir)/test_data/Hall_minimally_processed.csv --n_pos 8 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_8_Hall_new_prep.csv
+
+nb_n_h16:
+	python -B nb_sk_al.py --input $(parent_dir)/test_data/Hall_minimally_processed.csv --n_pos 16 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_16_Hall_new_prep.csv
+
+nb_n_h32:
+	python -B nb_sk_al.py --input $(parent_dir)/test_data/Hall_minimally_processed.csv --n_pos 32 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_32_Hall_new_prep.csv
+
+nb_n_w8:
+	python -B nb_sk_al.py --input $(parent_dir)/test_data/Wahono_minimally_processed.csv --n_pos 8 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_8_Wahono_new_prep.csv
+
+nb_n_w16:
+	python -B nb_sk_al.py --input $(parent_dir)/test_data/Wahono_minimally_processed.csv --n_pos 16 --repeats 20 --batch_size 1 --output results_al/results_uncertainty_gaussian_nb_16_Wahono_new_prep.csv
+
 exp_diabetes_al:
 	@echo "Running eg__nbAL on diabetes"
 	python3 -B bl-added.py -M sklearn --nbAL $(parent_dir)/../moot/classify/diabetes.csv
