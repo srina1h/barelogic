@@ -1,0 +1,9 @@
+Hyperparameters used for preprocessing:
+==================================================
+max_features: 10000
+min_word_length: 2
+ngram_range: (1, 1)
+remove_stopwords: True
+top_n: 100
+use_lemmatization: False
+use_stemming: True

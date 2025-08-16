@@ -192,19 +192,25 @@ def _log_pdf_for_col(value, col):
    if value == "?":
       return 0.0
    
-  #  if getattr(col, 'it', None) is Sym:
-  #     n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
-  #     return (col.has.get(v, 0) + the.Alpha_cnb_sk) / (
-  #         col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk)
+   # Handle symbolic columns
+   if getattr(col, 'it', None) is Sym:
+      n_categories_for_smoothing = max(1, getattr(col, 'global_num_categories', 1))
+      return (col.has.get(value, 0) + the.Alpha_cnb_sk) / (
+          col.n + the.Alpha_cnb_sk * n_categories_for_smoothing + the.eps_sk)
    
-   mu = col.mu
-   sd = col.sd
-
-   variance = sd * sd + the.var_smoothing_gnb_sk
-   log_nom = -1 * (value - mu) ** 2 / (2 * variance)
-   log_denom = 0.5 * math.log(2 * math.pi * variance)
-
-   return log_nom - log_denom
+   # Handle numeric columns
+   if getattr(col, 'it', None) is Num:
+      mu = getattr(col, 'mu', 0)
+      sd = getattr(col, 'sd', 1)
+      
+      variance = sd * sd + the.var_smoothing_gnb_sk
+      log_nom = -1 * (value - mu) ** 2 / (2 * variance)
+      log_denom = 0.5 * math.log(2 * math.pi * variance)
+      
+      return log_nom - log_denom
+   
+   # Default case - return 0 if column type is unknown
+   return 0.0
 
 def like_sklearn(row, data, nall=100, nh=2):
     prior = (data.n) / (nall + the.eps_sk)
@@ -881,18 +887,14 @@ random.seed(the.rseed)
 
 def eg__timecheck(file):
     """
-    Loads the given CSV, uses first 5000 rows as train, next 3000 as test.
-    For 100 repeats:
-      - Shuffle all rows
-      - Take first 5000 as train, next 3000 as test
-      - Build two datasets (by class) from train
-      - For each test row, predict using likes()
+    Loads the given CSV, trains on the entire dataset, then performs inference on the entire dataset.
+    For 10 repeats:
+      - Train on all data (build datasets by class)
+      - Perform inference on all data
       - Measure and report average inference (prediction) time only
     At the end, print the average inference time (ms) for each mode.
     """
     data = Data(csv(file or the.file))
-    n_train = 5000
-    n_test = 3000
     n_repeats = 10
     class_col_idx = data.cols.klass.at
     all_rows = data.rows[:]
@@ -901,17 +903,17 @@ def eg__timecheck(file):
         predict_times = []
         for i in range(n_repeats):
             print(f"Running eg__timecheck for mode {mode} for repeat {i}")
-            random.shuffle(all_rows)
-            train_rows = all_rows[:n_train]
-            test_rows = all_rows[n_train:n_train+n_test]
-            class_vals = list(set(row[class_col_idx] for row in train_rows))
-            datasets = [clone(data, [row for row in train_rows if row[class_col_idx] == v]) for v in class_vals]
-            # if the.Mode == 'sklearn':
-            #     calculate_global_category_stats(datasets)
+            # Train on entire dataset
+            class_vals = list(set(row[class_col_idx] for row in all_rows))
+            datasets = [clone(data, [row for row in all_rows if row[class_col_idx] == v]) for v in class_vals]
+            if the.Mode == 'sklearn':
+                calculate_global_category_stats(datasets)
+            
+            # Measure inference time on entire dataset
             t0 = time.perf_counter()
             # --- Begin evaluation for false alarm calculation ---
             tp = fp = fn = tn = 0
-            for row in test_rows:
+            for row in all_rows:
                 predicted_dataset = likes(row, datasets)
                 predicted_class = predicted_dataset.rows[0][class_col_idx] if predicted_dataset.rows else None
                 actual_class = row[class_col_idx]
