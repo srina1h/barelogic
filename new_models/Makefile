@@ -39,6 +39,7 @@ venv:
 .PHONY: all
 all: venv
 	@echo "Running all regular experiments..."
+	source $(VENV_NAME)/bin/activate;
 	@for treatment in $(TREATMENTS); do \
 		for dataset in $(DATASETS); do \
 			echo "Running $$treatment/$$dataset for all n_pos values..."; \
@@ -59,6 +60,7 @@ all: venv
 .PHONY: all-smote
 all-smote: venv
 	@echo "Running all SMOTE experiments..."
+	source $(VENV_NAME)/bin/activate;
 	@for treatment in $(TREATMENTS); do \
 		for dataset in $(DATASETS); do \
 			echo "Running SMOTE $$treatment/$$dataset for all n_pos values..."; \
