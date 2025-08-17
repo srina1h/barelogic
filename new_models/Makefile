@@ -29,6 +29,7 @@ TREATMENTS = tfidf_100_max_features_10000_top_n_100 \
 .PHONY: venv
 venv:
 	@echo "Creating virtual environment..."
+	@rm -rf $(VENV_NAME)
 	@$(PYTHON_VERSION) -m venv $(VENV_NAME)
 	@echo "Installing required packages..."
 	@$(VENV_PYTHON) -m pip install --upgrade pip
@@ -39,7 +40,7 @@ venv:
 .PHONY: all
 all: venv
 	@echo "Running all regular experiments..."
-	source $(VENV_NAME)/bin/activate;
+	@source $(VENV_NAME)/bin/activate; \
 	@for treatment in $(TREATMENTS); do \
 		for dataset in $(DATASETS); do \
 			echo "Running $$treatment/$$dataset for all n_pos values..."; \
