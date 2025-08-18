@@ -40,8 +40,8 @@ venv:
 .PHONY: all
 all: venv
 	@echo "Running all regular experiments..."
-	@source $(VENV_NAME)/bin/activate; \
-	@for treatment in $(TREATMENTS); do \
+	source $(VENV_NAME)/bin/activate; \
+	for treatment in $(TREATMENTS); do \
 		for dataset in $(DATASETS); do \
 			echo "Running $$treatment/$$dataset for all n_pos values..."; \
 			mkdir -p ../results/$$treatment/$$dataset; \
@@ -61,8 +61,8 @@ all: venv
 .PHONY: all-smote
 all-smote: venv
 	@echo "Running all SMOTE experiments..."
-	source $(VENV_NAME)/bin/activate;
-	@for treatment in $(TREATMENTS); do \
+	source $(VENV_NAME)/bin/activate; \
+	for treatment in $(TREATMENTS); do \
 		for dataset in $(DATASETS); do \
 			echo "Running SMOTE $$treatment/$$dataset for all n_pos values..."; \
 			mkdir -p ../results/SMOTE_$$treatment/$$dataset; \
@@ -87,7 +87,7 @@ run-treatment: venv
 		exit 1; \
 	fi
 	@echo "Running regular experiments for treatment: $(TREATMENT)"
-	@for dataset in $(DATASETS); do \
+	for dataset in $(DATASETS); do \
 		echo "Running $(TREATMENT)/$$dataset for all n_pos values..."; \
 		mkdir -p ../results/$(TREATMENT)/$$dataset; \
 		for n_pos in 8 16 32; do \
@@ -109,7 +109,7 @@ run-treatment-smote: venv
 		exit 1; \
 	fi
 	@echo "Running SMOTE experiments for treatment: $(TREATMENT)"
-	@for dataset in $(DATASETS); do \
+	for dataset in $(DATASETS); do \
 		echo "Running SMOTE $(TREATMENT)/$$dataset for all n_pos values..."; \
 		mkdir -p ../results/SMOTE_$(TREATMENT)/$$dataset; \
 		for n_pos in 8 16 32; do \
@@ -131,7 +131,7 @@ run-dataset: venv
 		exit 1; \
 	fi
 	@echo "Running regular experiments for dataset: $(DATASET)"
-	@for treatment in $(TREATMENTS); do \
+	for treatment in $(TREATMENTS); do \
 		echo "Running $$treatment/$(DATASET) for all n_pos values..."; \
 		mkdir -p ../results/$$treatment/$(DATASET); \
 		for n_pos in 8 16 32; do \
@@ -153,7 +153,7 @@ run-dataset-smote: venv
 		exit 1; \
 	fi
 	@echo "Running SMOTE experiments for dataset: $(DATASET)"
-	@for treatment in $(TREATMENTS); do \
+	for treatment in $(TREATMENTS); do \
 		echo "Running SMOTE $$treatment/$(DATASET) for all n_pos values..."; \
 		mkdir -p ../results/SMOTE_$$treatment/$(DATASET); \
 		for n_pos in 8 16 32; do \
