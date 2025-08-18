@@ -29,12 +29,15 @@ TREATMENTS = tfidf_100_max_features_10000_top_n_100 \
 .PHONY: venv
 venv:
 	@echo "Creating virtual environment..."
-	@rm -rf $(VENV_NAME)
-	@$(PYTHON_VERSION) -m venv $(VENV_NAME)
-	@echo "Installing required packages..."
-	@$(VENV_PYTHON) -m pip install --upgrade pip
-	@$(VENV_PYTHON) -m pip install pandas numpy scikit-learn imbalanced-learn
-	@echo "Virtual environment setup complete!"
+	@if [ -d "$(VENV_NAME)" ]; then \
+		echo "Virtual environment already exists. Skipping creation."; \
+	else \
+		$(PYTHON_VERSION) -m venv $(VENV_NAME); \
+		echo "Installing required packages..."; \
+		$(VENV_PYTHON) -m pip install --upgrade pip; \
+		$(VENV_PYTHON) -m pip install pandas numpy scikit-learn imbalanced-learn; \
+		echo "Virtual environment setup complete!"; \
+	fi
 
 # Run all regular experiments (all treatments, all datasets, all n_pos values)
 .PHONY: all
@@ -175,6 +178,28 @@ status:
 	@echo ""
 	@echo "SMOTE experiments:"
 	@ps aux | grep naive_bayes_AL_SMOTE.py | grep -v grep || echo "No SMOTE experiments currently running"
+
+.PHONY: wait-regular
+wait-regular:
+	@echo "Waiting for regular experiments to complete..."
+	@while pgrep -f "naive_bayes_AL.py" | grep -v SMOTE > /dev/null; do \
+		echo "Regular experiments still running... waiting"; \
+		sleep 60; \
+	done
+	@echo "Regular experiments completed!"
+
+.PHONY: wait-smote
+wait-smote:
+	@echo "Waiting for SMOTE experiments to complete..."
+	@while pgrep -f "naive_bayes_AL_SMOTE.py" > /dev/null; do \
+		echo "SMOTE experiments still running... waiting"; \
+		sleep 60; \
+	done
+	@echo "SMOTE experiments completed!"
+
+.PHONY: wait-all
+wait-all: wait-regular wait-smote
+	@echo "All experiments completed!"
 
 .PHONY: clean
 clean:
