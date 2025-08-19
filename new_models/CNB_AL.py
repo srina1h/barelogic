@@ -1,9 +1,8 @@
 import pandas as pd
 import numpy as np
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import ComplementNB
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import precision_score, recall_score
-from imblearn.over_sampling import SMOTE
 import argparse
 import os
 import random
@@ -35,7 +34,7 @@ def load_and_normalize(file_path):
     X = scaler.fit_transform(X)
     return X, y
 
-def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, random_seed=42, step_cutoff=None):
+def active_learning(X, y, n_pos=8, repeats=10, batch_size=1000, random_seed=42, step_cutoff=None):
     np.random.seed(random_seed)
     random.seed(random_seed)
     results = []
@@ -43,9 +42,8 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
     neg_label = 0
     pos_indices = np.where(y == pos_label)[0]
     neg_indices = np.where(y == neg_label)[0]
-    
     for rep in range(repeats):
-        print(f"[Repeat {rep+1}/{repeats}] Starting active learning run with SMOTE...")
+        print(f"[Repeat {rep+1}/{repeats}] Starting active learning run with Complementary Naive Bayes...")
         # Initial labeled set
         if len(pos_indices) < n_pos or len(neg_indices) < n_pos * 4:
             continue
@@ -54,24 +52,10 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
         labeled = list(selected_pos) + list(selected_neg)
         pool = [i for i in range(len(y)) if i not in labeled]
         step_metrics = []
-        
-        # Initial evaluation with SMOTE
+        # Initial evaluation
         print(f"  [Repeat {rep+1}] Initial evaluation on all data with {len(labeled)} labeled, {len(pool)} in pool.")
-        print(f"  [Repeat {rep+1}] Applying SMOTE to initial dataset...")
-        
-        # Apply SMOTE to the initial labeled dataset
-        X_labeled = X[labeled]
-        y_labeled = y[labeled]
-        
-        # Apply SMOTE to balance the dataset
-        smote = SMOTE(random_state=random_seed + rep, k_neighbors=min(5, n_pos - 1))
-        X_labeled_balanced, y_labeled_balanced = smote.fit_resample(X_labeled, y_labeled)
-        
-        print(f"  [Repeat {rep+1}] SMOTE applied: {len(X_labeled)} -> {len(X_labeled_balanced)} samples")
-        print(f"  [Repeat {rep+1}] Class distribution after SMOTE: {np.bincount(y_labeled_balanced)}")
-        
-        model = GaussianNB()
-        model.fit(X_labeled_balanced, y_labeled_balanced)
+        model = ComplementNB()
+        model.fit(X[labeled], y[labeled])
         y_pred = model.predict(X)
         precision = precision_score(y, y_pred, zero_division=0)
         recall = recall_score(y, y_pred, zero_division=0)
@@ -79,9 +63,8 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
         fp = np.sum((y_pred == pos_label) & (y == neg_label))
         tn = np.sum((y_pred == neg_label) & (y == neg_label))
         false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-        print(f"    [Repeat {rep+1}] Initial (with SMOTE): Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        print(f"    [Repeat {rep+1}] Initial: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
         step_metrics.append((precision, recall, false_alarm_pct))
-        
         acq = 0
         no_iterations = len(pool)
         step_count = 0
@@ -100,21 +83,10 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
             new_indices = [pool[i] for i in acq_indices]
             labeled.extend(new_indices)
             pool = [i for i in pool if i not in new_indices]
-            
-            # Apply SMOTE to the updated labeled dataset
-            X_labeled = X[labeled]
-            y_labeled = y[labeled]
-            
-            # Apply SMOTE to balance the dataset
-            smote = SMOTE(random_state=random_seed + rep, k_neighbors=min(5, n_pos - 1))
-            X_labeled_balanced, y_labeled_balanced = smote.fit_resample(X_labeled, y_labeled)
-            
-            model.fit(X_labeled_balanced, y_labeled_balanced)
+            model.fit(X[labeled], y[labeled])
             acq += batch_to_acquire
             step_count += 1
             print(f"    [Repeat {rep+1}] Step {step_count}: Acquired {acq}/{no_iterations} samples. Labeled: {len(labeled)}. Pool left: {len(pool)}.")
-            print(f"    [Repeat {rep+1}] SMOTE applied: {len(X_labeled)} -> {len(X_labeled_balanced)} samples")
-            
             y_pred = model.predict(X)
             print(f"    [Repeat {rep+1}] Evaluation after acquisition.")
             precision = precision_score(y, y_pred, zero_division=0)
@@ -123,14 +95,13 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
             fp = np.sum((y_pred == pos_label) & (y == neg_label))
             tn = np.sum((y_pred == neg_label) & (y == neg_label))
             false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-            print(f"    [Repeat {rep+1}] Step {step_count} (with SMOTE): Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+            print(f"    [Repeat {rep+1}] Step {step_count}: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
             step_metrics.append((precision, recall, false_alarm_pct))
             
             # Check if we've reached the step cutoff
             if step_cutoff is not None and step_count >= step_cutoff:
                 print(f"    [Repeat {rep+1}] Reached step cutoff ({step_cutoff}). Stopping acquisition.")
                 break
-        
         print(f"  [Repeat {rep+1}] Final evaluation with all samples acquired.")
         y_pred = model.predict(X)
         precision = precision_score(y, y_pred, zero_division=0)
@@ -139,7 +110,7 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
         fp = np.sum((y_pred == pos_label) & (y == neg_label))
         tn = np.sum((y_pred == neg_label) & (y == neg_label))
         false_alarm_pct = (fp / (fp + tn) * 100) if (fp + tn) > 0 else 0
-        print(f"  [Repeat {rep+1}] Final (with SMOTE): Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
+        print(f"  [Repeat {rep+1}] Final: Precision: {precision:.4f}, Recall: {recall:.4f}, False alarm %: {false_alarm_pct:.2f}%")
         step_metrics.append((precision, recall, false_alarm_pct))
         results.append(step_metrics)
     return results
@@ -179,7 +150,7 @@ def main():
     parser.add_argument('--n_pos', type=int, default=8, help='Number of positive samples to start with')
     parser.add_argument('--repeats', type=int, default=20, help='Number of repeats')
     parser.add_argument('--batch_size', type=int, default=1000, help='Batch size for acquisition')
-    parser.add_argument('--output', default='results_nb_sk_al_smote.csv', help='Output CSV for results')
+    parser.add_argument('--output', default='results_cnb_al.csv', help='Output CSV for results')
     parser.add_argument('--step_cutoff', type=int, help='Override step cutoff from JSON file')
     args = parser.parse_args()
     
@@ -202,7 +173,7 @@ def main():
             step_cutoff = None
     
     X, y = load_and_normalize(args.input)
-    results = active_learning_with_smote(X, y, n_pos=args.n_pos, repeats=args.repeats, batch_size=args.batch_size, step_cutoff=step_cutoff)
+    results = active_learning(X, y, n_pos=args.n_pos, repeats=args.repeats, batch_size=args.batch_size, step_cutoff=step_cutoff)
     aggregate_and_save(results, args.output)
 
 if __name__ == '__main__':

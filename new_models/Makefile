@@ -8,8 +8,8 @@ VENV_NAME = venv
 VENV_PYTHON = $(VENV_NAME)/bin/python
 
 # Experiment parameters
-REPEATS = 20
-BATCH_SIZE = 1000
+REPEATS = 10
+BATCH_SIZE = 1
 N_POS_VALUES = 8 16 32
 
 # Datasets
@@ -81,6 +81,48 @@ all-smote: venv
 	done
 	@echo "All SMOTE experiments started!"
 
+# Run all CNB experiments (all treatments, all datasets, all n_pos values)
+.PHONY: all-cnb
+all-cnb: venv
+	@echo "Running all CNB experiments..."
+	source $(VENV_NAME)/bin/activate; \
+	for treatment in $(TREATMENTS); do \
+		for dataset in $(DATASETS); do \
+			echo "Running CNB $$treatment/$$dataset for all n_pos values..."; \
+			mkdir -p ../results/CNB_$$treatment/$$dataset; \
+			for n_pos in 8 16 32; do \
+				echo "  Starting CNB n_pos=$$n_pos..."; \
+				nohup $(VENV_PYTHON) CNB_AL.py \
+					--input ../data/$$treatment/$$dataset.csv \
+					--output ../results/CNB_$$treatment/$$dataset/results_cnb_al_n$$n_pos.csv \
+					--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+					> ../results/CNB_$$treatment/$$dataset/experiment_n$$n_pos.log 2>&1 & \
+			done; \
+		done; \
+	done
+	@echo "All CNB experiments started!"
+
+# Run all CNB SMOTE experiments (all treatments, all datasets, all n_pos values)
+.PHONY: all-cnb-smote
+all-cnb-smote: venv
+	@echo "Running all CNB SMOTE experiments..."
+	source $(VENV_NAME)/bin/activate; \
+	for treatment in $(TREATMENTS); do \
+		for dataset in $(DATASETS); do \
+			echo "Running CNB SMOTE $$treatment/$$dataset for all n_pos values..."; \
+			mkdir -p ../results/CNB_SMOTE_$$treatment/$$dataset; \
+			for n_pos in 8 16 32; do \
+				echo "  Starting CNB SMOTE n_pos=$$n_pos..."; \
+				nohup $(VENV_PYTHON) CNB_AL_SMOTE.py \
+					--input ../data/$$treatment/$$dataset.csv \
+					--output ../results/CNB_SMOTE_$$treatment/$$dataset/results_cnb_al_smote_n$$n_pos.csv \
+					--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+					> ../results/CNB_SMOTE_$$treatment/$$dataset/experiment_n$$n_pos.log 2>&1 & \
+			done; \
+		done; \
+	done
+	@echo "All CNB SMOTE experiments started!"
+
 # Run experiments for a specific treatment
 .PHONY: run-treatment
 run-treatment: venv
@@ -122,6 +164,50 @@ run-treatment-smote: venv
 				--output ../results/SMOTE_$(TREATMENT)/$$dataset/results_nb_sk_al_smote_n$$n_pos.csv \
 				--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
 				> ../results/SMOTE_$(TREATMENT)/$$dataset/experiment_n$$n_pos.log 2>&1 & \
+		done; \
+	done
+
+# Run CNB experiments for a specific treatment
+.PHONY: run-treatment-cnb
+run-treatment-cnb: venv
+	@if [ -z "$(TREATMENT)" ]; then \
+		echo "Usage: make run-treatment-cnb TREATMENT=<treatment_name>"; \
+		echo "Available treatments: $(TREATMENTS)"; \
+		exit 1; \
+	fi
+	@echo "Running CNB experiments for treatment: $(TREATMENT)"
+	for dataset in $(DATASETS); do \
+		echo "Running CNB $(TREATMENT)/$$dataset for all n_pos values..."; \
+		mkdir -p ../results/CNB_$(TREATMENT)/$$dataset; \
+		for n_pos in 8 16 32; do \
+			echo "  Starting CNB n_pos=$$n_pos..."; \
+			nohup $(VENV_PYTHON) CNB_AL.py \
+				--input ../data/$(TREATMENT)/$$dataset.csv \
+				--output ../results/CNB_$(TREATMENT)/$$dataset/results_cnb_al_n$$n_pos.csv \
+				--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+				> ../results/CNB_$(TREATMENT)/$$dataset/experiment_n$$n_pos.log 2>&1 & \
+		done; \
+	done
+
+# Run CNB SMOTE experiments for a specific treatment
+.PHONY: run-treatment-cnb-smote
+run-treatment-cnb-smote: venv
+	@if [ -z "$(TREATMENT)" ]; then \
+		echo "Usage: make run-treatment-cnb-smote TREATMENT=<treatment_name>"; \
+		echo "Available treatments: $(TREATMENTS)"; \
+		exit 1; \
+	fi
+	@echo "Running CNB SMOTE experiments for treatment: $(TREATMENT)"
+	for dataset in $(DATASETS); do \
+		echo "Running CNB SMOTE $(TREATMENT)/$$dataset for all n_pos values..."; \
+		mkdir -p ../results/CNB_SMOTE_$(TREATMENT)/$$dataset; \
+		for n_pos in 8 16 32; do \
+			echo "  Starting CNB SMOTE n_pos=$$n_pos..."; \
+			nohup $(VENV_PYTHON) CNB_AL_SMOTE.py \
+				--input ../data/$(TREATMENT)/$$dataset.csv \
+				--output ../results/CNB_SMOTE_$(TREATMENT)/$$dataset/results_cnb_al_smote_n$$n_pos.csv \
+				--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+				> ../results/CNB_SMOTE_$(TREATMENT)/$$dataset/experiment_n$$n_pos.log 2>&1 & \
 		done; \
 	done
 
@@ -169,6 +255,50 @@ run-dataset-smote: venv
 		done; \
 	done
 
+# Run CNB experiments for a specific dataset across all treatments
+.PHONY: run-dataset-cnb
+run-dataset-cnb: venv
+	@if [ -z "$(DATASET)" ]; then \
+		echo "Usage: make run-dataset-cnb DATASET=<dataset_name>"; \
+		echo "Available datasets: $(DATASETS)"; \
+		exit 1; \
+	fi
+	@echo "Running CNB experiments for dataset: $(DATASET)"
+	for treatment in $(TREATMENTS); do \
+		echo "Running CNB $$treatment/$(DATASET) for all n_pos values..."; \
+		mkdir -p ../results/CNB_$$treatment/$(DATASET); \
+		for n_pos in 8 16 32; do \
+			echo "  Starting CNB n_pos=$$n_pos..."; \
+			nohup $(VENV_PYTHON) CNB_AL.py \
+				--input ../data/$$treatment/$(DATASET).csv \
+				--output ../results/CNB_$$treatment/$(DATASET)/results_cnb_al_n$$n_pos.csv \
+				--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+				> ../results/CNB_$$treatment/$(DATASET)/experiment_n$$n_pos.log 2>&1 & \
+		done; \
+	done
+
+# Run CNB SMOTE experiments for a specific dataset across all treatments
+.PHONY: run-dataset-cnb-smote
+run-dataset-cnb-smote: venv
+	@if [ -z "$(DATASET)" ]; then \
+		echo "Usage: make run-dataset-cnb-smote DATASET=<dataset_name>"; \
+		echo "Available datasets: $(DATASETS)"; \
+		exit 1; \
+	fi
+	@echo "Running CNB SMOTE experiments for dataset: $(DATASET)"
+	for treatment in $(TREATMENTS); do \
+		echo "Running CNB SMOTE $$treatment/$(DATASET) for all n_pos values..."; \
+		mkdir -p ../results/CNB_SMOTE_$$treatment/$(DATASET); \
+		for n_pos in 8 16 32; do \
+			echo "  Starting CNB SMOTE n_pos=$$n_pos..."; \
+			nohup $(VENV_PYTHON) CNB_AL_SMOTE.py \
+				--input ../data/$$treatment/$(DATASET).csv \
+				--output ../results/CNB_SMOTE_$$treatment/$(DATASET)/results_cnb_al_smote_n$$n_pos.csv \
+				--n_pos $$n_pos --repeats $(REPEATS) --batch_size $(BATCH_SIZE) \
+				> ../results/CNB_SMOTE_$$treatment/$(DATASET)/experiment_n$$n_pos.log 2>&1 & \
+		done; \
+	done
+
 # Utility targets
 .PHONY: status
 status:
@@ -178,6 +308,12 @@ status:
 	@echo ""
 	@echo "SMOTE experiments:"
 	@ps aux | grep naive_bayes_AL_SMOTE.py | grep -v grep || echo "No SMOTE experiments currently running"
+	@echo ""
+	@echo "CNB experiments:"
+	@ps aux | grep CNB_AL.py | grep -v grep | grep -v SMOTE || echo "No CNB experiments currently running"
+	@echo ""
+	@echo "CNB SMOTE experiments:"
+	@ps aux | grep CNB_AL_SMOTE.py | grep -v grep || echo "No CNB SMOTE experiments currently running"
 
 .PHONY: wait-regular
 wait-regular:
@@ -197,8 +333,26 @@ wait-smote:
 	done
 	@echo "SMOTE experiments completed!"
 
+.PHONY: wait-cnb
+wait-cnb:
+	@echo "Waiting for CNB experiments to complete..."
+	@while pgrep -f "CNB_AL.py" | grep -v SMOTE > /dev/null; do \
+		echo "CNB experiments still running... waiting"; \
+		sleep 60; \
+	done
+	@echo "CNB experiments completed!"
+
+.PHONY: wait-cnb-smote
+wait-cnb-smote:
+	@echo "Waiting for CNB SMOTE experiments to complete..."
+	@while pgrep -f "CNB_AL_SMOTE.py" > /dev/null; do \
+		echo "CNB SMOTE experiments still running... waiting"; \
+		sleep 60; \
+	done
+	@echo "CNB SMOTE experiments completed!"
+
 .PHONY: wait-all
-wait-all: wait-regular wait-smote
+wait-all: wait-regular wait-smote wait-cnb wait-cnb-smote
 	@echo "All experiments completed!"
 
 .PHONY: clean
@@ -211,14 +365,20 @@ help:
 	@echo "Available targets:"
 	@echo "  all                    - Run all regular experiments (all treatments, all datasets, all n_pos values)"
 	@echo "  all-smote              - Run all SMOTE experiments (all treatments, all datasets, all n_pos values)"
+	@echo "  all-cnb                - Run all CNB experiments (all treatments, all datasets, all n_pos values)"
+	@echo "  all-cnb-smote          - Run all CNB SMOTE experiments (all treatments, all datasets, all n_pos values)"
 	@echo ""
 	@echo "Treatment-specific targets:"
 	@echo "  run-treatment TREATMENT=<name>     - Run regular experiments for specific treatment"
 	@echo "  run-treatment-smote TREATMENT=<name> - Run SMOTE experiments for specific treatment"
+	@echo "  run-treatment-cnb TREATMENT=<name> - Run CNB experiments for specific treatment"
+	@echo "  run-treatment-cnb-smote TREATMENT=<name> - Run CNB SMOTE experiments for specific treatment"
 	@echo ""
 	@echo "Dataset-specific targets:"
 	@echo "  run-dataset DATASET=<name>         - Run regular experiments for specific dataset"
 	@echo "  run-dataset-smote DATASET=<name>   - Run SMOTE experiments for specific dataset"
+	@echo "  run-dataset-cnb DATASET=<name>     - Run CNB experiments for specific dataset"
+	@echo "  run-dataset-cnb-smote DATASET=<name> - Run CNB SMOTE experiments for specific dataset"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  status                 - Check running experiments"
@@ -253,5 +413,9 @@ help:
 	@echo "Examples:"
 	@echo "  make all"
 	@echo "  make all-smote"
+	@echo "  make all-cnb"
+	@echo "  make all-cnb-smote"
 	@echo "  make run-treatment TREATMENT=tfidf_50_max_features_10000_top_n_50"
+	@echo "  make run-treatment-cnb TREATMENT=tfidf_50_max_features_10000_top_n_50"
 	@echo "  make run-dataset DATASET=Hall"
+	@echo "  make run-dataset-cnb DATASET=Hall"

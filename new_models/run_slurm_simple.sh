@@ -12,15 +12,18 @@ cd /home/ssrini27/se/barelogic/new_models
 echo "Setting up virtual environment..."
 make venv
 
-# Run regular experiments and wait for them to complete
-echo "Starting regular experiments..."
+# Start all experiments simultaneously
+echo "Starting all experiments simultaneously..."
 make all
-make wait-regular
-
-# Run SMOTE experiments and wait for them to complete
-echo "Starting SMOTE experiments..."
 make all-smote
-make wait-smote
+make all-cnb
+make all-cnb-smote
+
+echo "All experiments started! Waiting for completion..."
+
+# Wait for all experiments to complete
+echo "Waiting for all experiments to complete..."
+make wait-all
 
 echo "All experiments completed!"
 

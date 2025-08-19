@@ -105,6 +105,7 @@ Results will be saved in the following structure:
 - **Simplified commands**: No need to specify individual n_pos values or complex target names
 - **Background execution**: All experiments run in the background using `nohup`
 - **Virtual environment**: Automatically creates and uses a Python virtual environment
+- **Step cutoff control**: Experiments can be limited to a specific number of steps using `step_cutoffs.json` configuration file
 
 ## Available Treatments
 
@@ -137,6 +138,23 @@ All experiments use the following parameters:
 - n_pos: 8 (number of positive samples to start with)
 - repeats: 20 (number of repeats)
 - batch_size: 1000 (batch size for acquisition)
+- step_cutoff: Dataset-specific (controlled by `step_cutoffs.json` in the main directory)
+
+## Step Cutoff Configuration
+
+The experiments now support running until a specific step count instead of acquiring all available samples. This is controlled by the `step_cutoffs.json` file in the main project directory:
+
+```json
+{
+  "Hall": 50,
+  "Kitchenham": 30,
+  "Radjenovic": 40,
+  "Wahono": 60,
+  "default": 100
+}
+```
+
+For more details, see `README_step_cutoff.md`.
 
 ## Notes
 

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import ComplementNB
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import precision_score, recall_score
 from imblearn.over_sampling import SMOTE
@@ -45,7 +45,7 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
     neg_indices = np.where(y == neg_label)[0]
     
     for rep in range(repeats):
-        print(f"[Repeat {rep+1}/{repeats}] Starting active learning run with SMOTE...")
+        print(f"[Repeat {rep+1}/{repeats}] Starting active learning run with Complementary Naive Bayes and SMOTE...")
         # Initial labeled set
         if len(pos_indices) < n_pos or len(neg_indices) < n_pos * 4:
             continue
@@ -70,7 +70,7 @@ def active_learning_with_smote(X, y, n_pos=8, repeats=10, batch_size=1000, rando
         print(f"  [Repeat {rep+1}] SMOTE applied: {len(X_labeled)} -> {len(X_labeled_balanced)} samples")
         print(f"  [Repeat {rep+1}] Class distribution after SMOTE: {np.bincount(y_labeled_balanced)}")
         
-        model = GaussianNB()
+        model = ComplementNB()
         model.fit(X_labeled_balanced, y_labeled_balanced)
         y_pred = model.predict(X)
         precision = precision_score(y, y_pred, zero_division=0)
@@ -179,7 +179,7 @@ def main():
     parser.add_argument('--n_pos', type=int, default=8, help='Number of positive samples to start with')
     parser.add_argument('--repeats', type=int, default=20, help='Number of repeats')
     parser.add_argument('--batch_size', type=int, default=1000, help='Batch size for acquisition')
-    parser.add_argument('--output', default='results_nb_sk_al_smote.csv', help='Output CSV for results')
+    parser.add_argument('--output', default='results_cnb_al_smote.csv', help='Output CSV for results')
     parser.add_argument('--step_cutoff', type=int, help='Override step cutoff from JSON file')
     args = parser.parse_args()
     
